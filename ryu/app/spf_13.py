@@ -14,25 +14,21 @@
 # limitations under the License.
 
 from ryu.base import app_manager
-from ryu.controller import mac_to_port
 from ryu.controller import ofp_event
-from ryu.controller.handler import MAIN_DISPATCHER, CONFIG_DISPATCHER
+from ryu.controller.handler import CONFIG_DISPATCHER, MAIN_DISPATCHER
 from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ofproto_v1_3
-from ryu.lib.mac import haddr_to_bin
 from ryu.lib.packet import packet
-from ryu.lib.packet import ethernet, ether_types
-from ryu.lib.packet import tcp, ipv4
+from ryu.lib.packet import ethernet
+from ryu.lib.packet import ether_types
+from ryu.topology import event, switches
 from ryu.topology.api import get_switch, get_link
-from ryu.app.wsgi import ControllerBase
-from ryu.topology import event, switches 
-import networkx as nx
 
-class L2switch(app_manager.RyuApp):
+class Spf13(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 
     def __init__(self, *args, **kwargs):
-        super(L2switch, self).__init__(*args, **kwargs)
+        super(Spf13, self).__init__(*args, **kwargs)
         self.mac_to_port = {}
 
     @set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
@@ -87,37 +83,8 @@ class L2switch(app_manager.RyuApp):
         if eth.ethertype == ether_types.ETH_TYPE_LLDP:
             # ignore lldp packet
             return
-
         dst = eth.dst
         src = eth.src
-
-		#self.logger.info("taketo protokoly su:")
-
-        t = pkt.get_protocol(ipv4.ipv4)
-
-        if t:
-            print 'zdrojova ip: ',t.src
-            print 'dest ip: ',t.dst
-
-        ht = pkt.get_protocol(tcp.tcp)
-
-        if ht:
-            print 'zdrojovy port: ',ht.src_port
-            print 'destination port: ',ht.dst_port
-
-            options = ht.option
-
-            join = 0
-            if options:
-                if len(options) > 0:
-                    for opt in options:
-                        print opt.kind
-                        if opt.kind == 30:
-                            print 'mp_capable'
-            if ht.src_port == 80:
-                print 'HTTP!!!'
-            elif ht.dst_port == 80:
-                print 'HTTP!!!'
 
         dpid = datapath.id
         self.mac_to_port.setdefault(dpid, {})
@@ -154,8 +121,7 @@ class L2switch(app_manager.RyuApp):
 
     @set_ev_cls(event.EventSwitchEnter)
     def get_topology_data(self, ev):
-		switch_list = get_switch(self.topology_api_app, None)
-		switches=[switch.dp.id for switch in switch_list]
-		links_list = get_link(self.topology_api_app, None)
-		links=[(link.src.dpid,link.dst.dpid,{'port':link.src.port_no}) for link in links_list]
-
+        switch_list = get_switch(self.topology_api_app, None)
+        switches=[switch.dp.id for switch in switch_list]
+        links_list = get_link(self.topology_api_app, None)
+        links=[(link.src.dpid,link.dst.dpid,{'port':link.src.port_no}) for link in links_list]
