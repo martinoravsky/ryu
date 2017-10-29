@@ -12,7 +12,7 @@ from ryu.controller.handler import MAIN_DISPATCHER, CONFIG_DISPATCHER
 from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ofproto_v1_3
 from ryu.lib.mac import haddr_to_bin
-from ryu.lib.packet import packet, ethernet, ether_types
+from ryu.lib.packet import packet, ethernet, ether_types, tcp,ipv4
 
 from ryu.topology.api import get_switch, get_link
 from ryu.app.wsgi import ControllerBase
@@ -91,6 +91,31 @@ class ProjectController(app_manager.RyuApp):
         dst = eth.dst
         src = eth.src
 
+        t = pkt.get_protocol(ipv4.ipv4)
+
+        if t:
+            print('zdrojova ip: ',t.src)
+            print('dest ip: ',t.dst)
+
+        ht = pkt.get_protocol(tcp.tcp)
+
+        if ht:
+            print('zdrojovy port: ',ht.src_port)
+            print('destination port: ',ht.dst_port)
+
+            options = ht.option
+
+            join = 0
+            if options:
+                if len(options) > 0:
+                    for opt in options:
+                        print(opt.kind)
+                        if opt.kind == 30:
+                            print('mp_capable')
+            if ht.src_port == 80:
+                print('HTTP!!!')
+            elif ht.dst_port == 80:
+                print('HTTP!!!')
         dpid = datapath.id
         self.mac_to_port.setdefault(dpid, {})
 
