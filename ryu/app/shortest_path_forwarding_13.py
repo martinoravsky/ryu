@@ -1,5 +1,5 @@
 """
-An OpenFlow 1.3 shortest path forwarding implementation.
+An OpenFlow 1.3 shortest path forwarding implementation by martinoravsky 
 """
 
 import logging
