@@ -172,6 +172,7 @@ class RyuApp(object):
         self.is_active = True
 
     def start(self):
+        # type: () -> object
         """
         Hook that is called after startup initialization is done.
         """

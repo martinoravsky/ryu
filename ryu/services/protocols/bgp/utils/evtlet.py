@@ -62,6 +62,7 @@ class LoopingCall(object):
         self._funct(*self._args, **self._kwargs)
 
     def start(self, interval, now=True):
+        # type: (object, object) -> object
         """Start running pre-set function every interval seconds.
         """
         if interval < 0:

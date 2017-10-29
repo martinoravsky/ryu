@@ -164,6 +164,7 @@ class OVSDB(app_manager.RyuApp):
             sock.close()
 
     def start(self):
+        # type: () -> object
         if netaddr.valid_ipv6(self._address):
             server = hub.listen(
                 (self._address, self._port), family=socket.AF_INET6)

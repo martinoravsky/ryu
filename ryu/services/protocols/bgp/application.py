@@ -183,6 +183,7 @@ class RyuBGPSpeaker(RyuApp):
         self.speaker = None
 
     def start(self):
+        # type: () -> object
         super(RyuBGPSpeaker, self).start()
 
         # If configuration file was provided and loaded successfully, we start

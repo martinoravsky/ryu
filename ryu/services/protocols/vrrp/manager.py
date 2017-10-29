@@ -63,6 +63,7 @@ class VRRPManager(app_manager.RyuApp):
         self.shutdown = hub.Queue()
 
     def start(self):
+        # type: () -> object
         t = hub.spawn(self._shutdown_loop)
         super(VRRPManager, self).start()
         return t

@@ -1092,6 +1092,7 @@ class PortThread(object):
         self.thread = None
 
     def start(self):
+        # type: () -> object
         self.stop()
         self.thread = hub.spawn(self.function)
 

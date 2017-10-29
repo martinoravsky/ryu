@@ -40,6 +40,7 @@ class BMPStation(app_manager.RyuApp):
         self.failed_pkt_count = 0
 
     def start(self):
+        # type: () -> object
         super(BMPStation, self).start()
         self.logger.debug("listening on %s:%s", self.server_host,
                           self.server_port)

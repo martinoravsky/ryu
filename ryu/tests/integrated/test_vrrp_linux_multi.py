@@ -82,6 +82,7 @@ class VRRPConfigApp(vrrp_common.VRRPCommon):
         super(VRRPConfigApp, self).__init__(*args, **kwargs)
 
     def start(self):
+        # type: () -> object
         hub.spawn(self._main)
 
     def _configure_vrrp_router(self, vrrp_version, priority,

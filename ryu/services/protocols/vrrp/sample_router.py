@@ -296,6 +296,7 @@ class RouterIPV4Linux(RouterIPV4):
         self._arp_thread = None
 
     def start(self):
+        # type: () -> object
         self._disable_router()
         super(RouterIPV4Linux, self).start()
 
@@ -394,6 +395,7 @@ class RouterIPV4OpenFlow(RouterIPV4):
         return utils.get_dp(self, self.interface.dpid)
 
     def start(self):
+        # type: () -> object
         dp = self._get_dp()
         assert dp
         self._uninstall_route_rule(dp)

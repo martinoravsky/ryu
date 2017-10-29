@@ -35,6 +35,7 @@ RYU_MGR = './bin/ryu-manager'
 class OVS12KernelSwitch(OVSKernelSwitch):
     """Set protocols parameter for OVS version 1.10"""
     def start(self, controllers):
+        # type: (object) -> object
         super(OVS12KernelSwitch, self).start(controllers)
         self.cmd('ovs-vsctl set Bridge', self,
                  "protocols='[OpenFlow10, OpenFlow12]'")

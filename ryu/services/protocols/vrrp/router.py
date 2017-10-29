@@ -43,6 +43,7 @@ class Timer(object):
         self._thread = None
 
     def start(self, interval):
+        # type: (object) -> object
         """interval is in seconds"""
         if self._thread:
             self.cancel()
@@ -462,6 +463,7 @@ class VRRPRouterV2(VRRPRouter):
         super(VRRPRouterV2, self).__init__(*args, **kwargs)
 
     def start(self):
+        # type: () -> object
         params = self.params
         params.master_adver_interval = self.config.advertisement_interval
         self.state_change(vrrp_event.VRRP_STATE_INITIALIZE)
@@ -679,6 +681,7 @@ class VRRPRouterV3(VRRPRouter):
         super(VRRPRouterV3, self).__init__(*args, **kwargs)
 
     def start(self):
+        # type: () -> object
         self.state_change(vrrp_event.VRRP_STATE_INITIALIZE)
         # Check role here and change accordingly
         # Check config.admin_state

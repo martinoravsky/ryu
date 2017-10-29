@@ -80,6 +80,7 @@ class VRRPInterfaceMonitorNetworkDevice(monitor.VRRPInterfaceMonitor):
         self.ifindex = if_nametoindex(self.interface.device_name)
 
     def start(self):
+        # type: () -> object
         # discard received packets before joining multicast membership
         packet_socket = self.packet_socket
         packet_socket.setblocking(0)

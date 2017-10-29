@@ -67,6 +67,7 @@ class ZClient(object):
         self.route_type = None
 
     def start(self):
+        # type: () -> object
         self.is_active = True
         self.sock.settimeout(GLOBAL_CONF.socket_timeout)
 
@@ -198,6 +199,7 @@ class ZServer(RyuApp):
         self.router_id = CONF.router_id
 
     def start(self):
+        # type: () -> object
         super(ZServer, self).start()
 
         if self.zapi_connection_family == socket.AF_UNIX:

@@ -461,6 +461,7 @@ class RemoteOvsdb(app_manager.RyuApp):
         self.reply_to_request(ev, rep)
 
     def start(self):
+        # type: () -> object
         super(RemoteOvsdb, self).start()
         t = hub.spawn(self._run_thread, self._idl_loop)
         self.threads.append(t)

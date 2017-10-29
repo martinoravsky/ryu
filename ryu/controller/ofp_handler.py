@@ -55,6 +55,7 @@ class OFPHandler(ryu.base.app_manager.RyuApp):
         self.controller = None
 
     def start(self):
+        # type: () -> object
         super(OFPHandler, self).start()
         self.controller = OpenFlowController()
         return hub.spawn(self.controller)

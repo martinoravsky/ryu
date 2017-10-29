@@ -241,6 +241,7 @@ class Activity(object):
         raise NotImplementedError()
 
     def start(self, *args, **kwargs):
+        # type: (object, object) -> object
         """Starts the main activity of this class.
 
         Calls *_run* and calls *stop* when *_run* is finished.

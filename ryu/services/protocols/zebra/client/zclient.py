@@ -94,6 +94,7 @@ class ZServer(object):
         self.threads = []
 
     def start(self):
+        # type: () -> object
         self.is_active = True
         try:
             self.sock = create_connection(self.client.zserv_addr)
@@ -206,6 +207,7 @@ class ZClient(RyuApp):
             CONF.client_route_type)
 
     def start(self):
+        # type: () -> object
         super(ZClient, self).start()
 
         return hub.spawn(self._service_loop)
