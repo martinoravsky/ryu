@@ -1,0 +1,88 @@
+A's key: 9811624133728756968
+A's key: 8829e42a588d64e8
+A's key: 1000100000101001111001000010101001011000100011010110010011101000
+B's key: 11165316730542732019
+B's key: 9af32c68f8b9b2f3
+B's key: 1001101011110011001011000110100011111000101110011011001011110011
+
+A's token: 1679226146
+B's token: 1882865511
+
+V tomto momente by A aj B mali mat ulozene kluce a tokeny pre dane spojenie
+
+
+MP_JOIN:
+
+SYN:
+
+Pouziva B's token: 1882865511
+A's random number: 1675073625
+A's random number: 63d79859
+A's random number: 1100011110101111001100001011001
+
+SYN/ACK:
+
+B's truncated HMAC: 15049215180399775481
+B's truncated HMAC: d0d98d78f0250ef9
+B's truncated HMAC: HMAC(Key=(B's key || A's key), Msg=(B's random number || A's random number))
+B's truncated HMAC: HMAC(111653167305427320199811624133728756968,23129774001675073625)
+B's truncated HMAC: HMAC(9af32c68f8b9b2f38829e42a588d64e8,89dd3bf863d79859)
+B's truncated HMAC: HMAC()
+B's random number: 2312977400
+B's random number: 89dd3bf8
+B's random number: 10001001110111010011101111111000
+
+A v tomto momente ma:
+
+A's key, B's key
+A's token, B's token
+A's random number
+B's random number
+B's truncated HMAC
+
+B v tomto momente ma:
+
+A's key, B's key
+A's token, B's token
+A's random number
+B's random number
+B's truncated HMAC
+
+ACK:
+
+A's HMAC: 823a4624e968b5a6a67a85589f23ca812b49f76b
+A's HMAC: HMAC(Key=(A's key || B's key), Msg=(A's random number || B's random number))
+
+-- koniec MP_JOIN --
+
+A v tomto momente ma:
+
+A's key, B's key
+A's token, B's token
+A's random number
+B's random number
+B's truncated HMAC
+A's HMAC: 823a4624e968b5a6a67a85589f23ca812b49f76b
+
+B v tomto momente ma:
+
+A's key, B's key
+A's token, B's token
+A's random number
+B's random number
+B's truncated HMAC
+A's HMAC: 823a4624e968b5a6a67a85589f23ca812b49f76b
+
+
+A token 6416F522
+B token 703A3F67
+
+
+hashlib.sha1(binascii.unhexlify("8829e42a588d64e8")).hexdigest()
+
+
+
+
+
+
+

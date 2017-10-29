@@ -1,0 +1,43 @@
+zacne sa premavka
+
+mne na controller pride MPTCP_capable,
+vytvorim novy connection na zaklade A's key, B's key, A's token, B's token
+
+bude tabulka mptcp_connections kde bude kluc cislo a value budu hodnoty vyssie
+
+
+treba nejako nastavit aby tie setup subflow pakety chodili na controller
+vytiahnem
+
+ked pride MP_join najskor chceme priradit subflow na zaklade tokenu a
+autentifikovat subflow. vypocitam na controlleri oba hashe a porovna
+sa hashmi v paketoch
+
+
+bude tabulka subflows, kde budu IPcky, porty, random numbers a hashe
+
+ked pride novy connection, prida sa zaznam do mptcp_connections tabulky
+a robi sa to iste
+subflows musia byt namapovane na dany connection
+
+
+=======
+
+
+
+pride MP_CAPABLE
+
+AK to nie je JOIN, je to prvy subflow
+
+ak neexistuje taky zaznam v mptcp_connections, pridam ho tam s klucmi a tokenmi
+inak nic (nemoze byt)
+
+inak to je join
+
+najdeme ci existuj token, ak hej pokracujeme autentizaciou
+-> ulozime ipcky, porty, nonce a hashe
+-> na controlleri vypocitame hashe, ak sedia, pridame do subflowovo
+-> ak nie - dropujeme
+
+ak pride novy connection, opakujeme
+
