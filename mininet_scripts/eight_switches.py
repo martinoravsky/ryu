@@ -65,12 +65,12 @@ def myNetwork():
     info( '*** Add interfaces to switch ***' )
     
     _intf = Intf( 'eth0', node=s1 )
-    _intf = Intf( 'eth1', node=s2 )
+    _intf = Intf( 'eth1', node=s5 )
     _intf = Intf( 'eth2', node=s4 )
     _intf = Intf( 'eth3', node=s8 )
 
     call(['ovs-vsctl','add-port','s1','eth0'])
-    call(['ovs-vsctl','add-port','s2','eth1'])
+    call(['ovs-vsctl','add-port','s5','eth1'])
     call(['ovs-vsctl','add-port','s4','eth2'])
     call(['ovs-vsctl','add-port','s8','eth3'])
     CLI(net)
