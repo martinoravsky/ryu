@@ -115,7 +115,8 @@ class L2switch(app_manager.RyuApp):
                         if opt.kind == 30:
                             print('hodnota: ',opt.value)
                             print('hodnota ako hex: ',binascii.hexlify(opt.value))
-
+                            print('hodnota ako hex bez version a flags: ', binascii.hexlify(opt.value)[4:])
+                            print('int hodnota bez version a flags: ',int(binascii.hexlify(opt.value)[4:]),16)
                             print('mp_capable')
 
             if ht.src_port == 80:
