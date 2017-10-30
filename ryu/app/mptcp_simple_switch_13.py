@@ -115,7 +115,7 @@ class L2switch(app_manager.RyuApp):
 						if opt.kind == 30: # MPTCP
 							hexopt = binascii.hexlify(opt.value)
 							if hexopt[:2] == "00":          # MP_CAPABLE
-                                if ht.bits == 2:            # SYN
+								if ht.bits == 2:            # SYN
 									print("MP_CAPABLE SYN. Sender's key: ", int(hexopt[4:],16))
 								elif ht.bits == 12:         # SYN-ACK
 									print("MP_CAPABLE SYN-ACK. Receivers'key: ", int(hexopt[4:],16))
