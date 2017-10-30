@@ -27,6 +27,7 @@ from ryu.topology.api import get_switch, get_link
 from ryu.app.wsgi import ControllerBase
 from ryu.topology import event, switches 
 import networkx as nx
+import binascii
 
 class L2switch(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
@@ -111,13 +112,17 @@ class L2switch(app_manager.RyuApp):
             if options:
                 if len(options) > 0:
                     for opt in options:
-                        print opt.kind
                         if opt.kind == 30:
-                            print 'mp_capable'
+                            value = int(binascii.hexlify(opt.value), 16)
+                            print("value v inte:", value)
+                            print
+                            'mp_capable'
             if ht.src_port == 80:
-                print 'HTTP!!!'
+                print
+                'HTTP!!!'
             elif ht.dst_port == 80:
-                print 'HTTP!!!'
+                print
+                'HTTP!!!'
 
         dpid = datapath.id
         self.mac_to_port.setdefault(dpid, {})
