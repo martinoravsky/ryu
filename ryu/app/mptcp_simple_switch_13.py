@@ -113,10 +113,11 @@ class L2switch(app_manager.RyuApp):
                 if len(options) > 0:
                     for opt in options:
                         if opt.kind == 30:
-                            value = int(binascii.hexlify(opt.value), 16)
-                            print("value v inte:", value)
-                            print
-                            'mp_capable'
+                            print('hodnota: ',opt.value)
+                            print('hodnota ako hex: ',binascii.hexlify(opt.value))
+
+                            print('mp_capable')
+
             if ht.src_port == 80:
                 print
                 'HTTP!!!'
