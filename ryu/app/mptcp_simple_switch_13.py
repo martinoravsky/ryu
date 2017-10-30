@@ -114,19 +114,20 @@ class L2switch(app_manager.RyuApp):
 						print opt
 						if opt.kind == 30: # MPTCP
 							hexopt = binascii.hexlify(opt.value)
+							print("ht.bits: ",ht.bits)
 							if hexopt[:2] == "00":          # MP_CAPABLE
 								if ht.bits == 2:            # SYN
 									print("MP_CAPABLE SYN. Sender's key: ", int(hexopt[4:],16))
-								elif ht.bits == 12:         # SYN-ACK
+								elif ht.bits == 18:         # SYN-ACK
 									print("MP_CAPABLE SYN-ACK. Receivers'key: ", int(hexopt[4:],16))
-								elif ht.bits == 10:         # ACK
+								elif ht.bits == 16:         # ACK
 									print("MP_CAPABLE ACK. Already have keys.")
 							elif hexopt[:2] == "10":        # MP_JOIN
 								if ht.bits == 2:            # SYN
 									print("MP_JOIN SYN. Sender's nonce: ", int(hexopt[4:],16))
-								elif ht.bits == 12:         # SYN-ACK
+								elif ht.bits == 18:         # SYN-ACK
 									print("MP_JOIN SYN-ACK. Sender's truncated HMAC :")
-								elif ht.bits == 10:         # ACK
+								elif ht.bits == 16:         # ACK
 									print("MP_JOIN ACK. Sender's HMAC :", int(hexopt[4:],16))
 
 			if ht.src_port == 80:
