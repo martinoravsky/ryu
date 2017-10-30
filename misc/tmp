@@ -1,0 +1,85 @@
+tuple = (23,454,65,7)
+dict = {id,tuple}
+
+print(dict[id][3])
+
+
+
+connections[id] = {'keyA':345,'keyB':4565,'tokenA':567,'tokenB':7554}
+
+connections je dictionary, key je id, value je dalsi dictionary
+
+
+TAKZE
+
+ak to je syn a je to MP_CAPABLE
+ide o senders'key
+ak to je syn/ack a je to MP_CAPABLE
+ide o receiver key
+ak to je ack a je to MP_CAPABLE
+ide o senders'key a receiver's key
+
+ak to je syn a je to MP_JOIN
+je to senders nonce
+
+ak to je syn/ack a je to mp_join
+je to senders truncated HMAC a senders nonce
+ak to je ack a je to mp_join
+
+je to sender's HMAC
+
+ako viem ci to je syn / synack / ack?
+
+print tcp.bits
+ak je to 2, je to syn
+syn/ack je 12
+ack je 10
+
+ako viem ci to je mp_capable alebo mp_join?
+
+vsetko su to kind 30, ale maju specialne dlzky
+
+mp_cap syn 12
+mp_cap synack 12
+mp_cap ack 20
+
+mp_joi syn 12
+mp_joi synack 16
+mp_joi ack 24
+
+
+
+mp_join je prvy bajt 10 z value
+mp_cap je prvy bajt 00 z value
+
+
+PRIDE KIND 30
+moze to byt bud capable alebo join
+
+zoberiem prvy bajt a uz viem
+
+ak capable:
+	ak flags=2
+		syn
+	ak flags=12
+		syn/ack
+	ak flags=10
+		ack
+
+ak join:
+	ak flags=2
+		syn
+	ak flags=12
+		synack
+	ak flags=10
+		ack
+
+
+2
+18
+16
+
+todo:
+SYN pri MP_JOIN rozdelit este na tokeny, nezabudnut
+SYN_ACK pri MP_JOIN uz nepride na controller
+ACK pri MP_JOIN uz nepride na controller
