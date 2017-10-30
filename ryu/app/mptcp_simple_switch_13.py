@@ -23,9 +23,9 @@ from ryu.lib.mac import haddr_to_bin
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet, ether_types
 from ryu.lib.packet import tcp, ipv4
-from ryu.topology.api import get_switch, get_link
+#from ryu.topology.api import get_switch, get_link
 from ryu.app.wsgi import ControllerBase
-from ryu.topology import event, switches 
+#from ryu.topology import event, switches
 import networkx as nx
 import binascii
 
@@ -157,10 +157,10 @@ class L2switch(app_manager.RyuApp):
                                   in_port=in_port, actions=actions, data=data)
         datapath.send_msg(out)
 
-    @set_ev_cls(event.EventSwitchEnter)
-    def get_topology_data(self, ev):
-		switch_list = get_switch(self.topology_api_app, None)
-		switches=[switch.dp.id for switch in switch_list]
-		links_list = get_link(self.topology_api_app, None)
-		links=[(link.src.dpid,link.dst.dpid,{'port':link.src.port_no}) for link in links_list]
+    # @set_ev_cls(event.EventSwitchEnter)
+    # def get_topology_data(self, ev):
+		# switch_list = get_switch(self.topology_api_app, None)
+		# switches=[switch.dp.id for switch in switch_list]
+		# links_list = get_link(self.topology_api_app, None)
+		# links=[(link.src.dpid,link.dst.dpid,{'port':link.src.port_no}) for link in links_list]
 
