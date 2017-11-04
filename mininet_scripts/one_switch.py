@@ -25,7 +25,7 @@ def myNetwork():
                       port=6633)
 
     info( '*** Add switches\n')
-    s1 = net.addSwitch('s1', cls=OVSKernelSwitch, protocols='OpenFlow13')
+    s1 = net.addSwitch('s1', cls=OVSKernelSwitch, protocols='OpenFlow15')
 
     info( '*** Starting network\n')
     net.build()

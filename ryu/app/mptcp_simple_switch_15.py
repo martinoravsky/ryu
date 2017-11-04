@@ -18,7 +18,7 @@ from ryu.controller import mac_to_port
 from ryu.controller import ofp_event
 from ryu.controller.handler import MAIN_DISPATCHER, CONFIG_DISPATCHER
 from ryu.controller.handler import set_ev_cls
-from ryu.ofproto import ofproto_v1_3
+from ryu.ofproto import ofproto_v1_5 as ofproto
 from ryu.lib.mac import haddr_to_bin
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet, ether_types
@@ -29,9 +29,10 @@ from ryu.app.wsgi import ControllerBase
 #import networkx as nx
 import binascii
 import hashlib
+import commands
 
 class L2switch(app_manager.RyuApp):
-	OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
+	OFP_VERSIONS = [ofproto.OFP_VERSION]
 
 	def __init__(self, *args, **kwargs):
 		super(L2switch, self).__init__(*args, **kwargs)
@@ -54,6 +55,7 @@ class L2switch(app_manager.RyuApp):
 		actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
 										  ofproto.OFPCML_NO_BUFFER)]
 		self.add_flow(datapath, 0, match, actions)
+		self.logger.info("Vytvaram flow... Datapath: %s, match: %s, actions: %s",datapath, match,actions)
 
 	def add_flow(self, datapath, priority, match, actions, buffer_id=None):
 		ofproto = datapath.ofproto
@@ -70,8 +72,6 @@ class L2switch(app_manager.RyuApp):
 									match=match, instructions=inst)
 		datapath.send_msg(mod)
 
-	global connections
-	connections = {}
 	@set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
 	def _packet_in_handler(self, ev):
 		# If you hit this you might want to increase
@@ -95,6 +95,7 @@ class L2switch(app_manager.RyuApp):
 		dst = eth.dst
 		src = eth.src
 
+		self.logger.info("Na controller dorazil paket. Predtym prisiel na Switch cislo %s, na port %s. Dst: %s, Src: %s",datapath.id,in_port,dst,src)
 
 		t = pkt.get_protocol(ipv4.ipv4)
 
@@ -109,7 +110,8 @@ class L2switch(app_manager.RyuApp):
 			print 'destination port: ',ht.dst_port
 
 			options = ht.option
-
+			flooduj = 0
+			#self.logger.info("packet in %s %s %s %s", datapath.id, src, dst, in_port)
 			if options:
 				if len(options) > 0:
 					for opt in options:
@@ -119,6 +121,11 @@ class L2switch(app_manager.RyuApp):
 							#print("ht.bits: ",ht.bits)
 							if hexopt[:2] == "00":          # MP_CAPABLE
 								if ht.bits == 2:            # SYN
+#		match = parser.OFPMatch(eth_type=0x800,ip_proto=6,tcp_flags=0x010)
+#		actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
+#		self.add_flow(datapath, 2, match, actions)
+									flooduj = 1
+									self.logger.info("Prisiel MP_CAPSYN. Nastavil som flooduj na 1")
 									keya = int(hexopt[4:],16)
 									tokena = int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16)
 									print("MP_CAPABLE SYN. Sender's key: ", int(hexopt[4:],16))
@@ -130,16 +137,10 @@ class L2switch(app_manager.RyuApp):
 									print("MP_CAPABLE SYN-ACK. Subflow token generated from key: ", int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16))
 								elif ht.bits == 16:         # ACK
 									print("MP_CAPABLE ACK. Already have keys.")
-				#				if 'keya' in locals():
-				#					if 'keyb' in locals():
-				#						connections['keya'] = {'keyb':keyb}
-				#					if 'tokena' in locals():
-				#						connections['keya'] = {'tokena':tokena}
-				#					if 'tokenb' in locals():
-				#						connections['keya'] = {'tokenb':tokenb}
-								print(connections)
 							elif hexopt[:2] == "10":        # MP_JOIN
 								if ht.bits == 2:            # SYN
+									flooduj = 1
+									self.logger.info("Prisiel MP_JOINSYN. Nastavil som flooduj na 1")
 									print("MP_JOIN SYN. Receiver's token: ", int(hexopt[4:][:8],16))
 									print("MP_JOIN SYN. Sender's nonce: ", int(hexopt[12:],16))
 								elif ht.bits == 18:         # SYN-ACK
@@ -158,23 +159,31 @@ class L2switch(app_manager.RyuApp):
 		dpid = datapath.id
 		self.mac_to_port.setdefault(dpid, {})
 
-		self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
+		#self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
 
 		# learn a mac address to avoid FLOOD next time.
 		self.mac_to_port[dpid][src] = in_port
 
-		if dst in self.mac_to_port[dpid]:
+		
+
+		if dst in self.mac_to_port[dpid] and flooduj == 0:
 			out_port = self.mac_to_port[dpid][dst]
+			self.logger.info("Mam adresu ale zaroven nemusim floodovat.")
+			self.logger.info("Nakazal som odosielat taketo veci portom c. %s",out_port)
 		else:
 			out_port = ofproto.OFPP_FLOOD
+			self.logger.info("Hodnota flooduj je %s",flooduj)
+			self.logger.info("Floodujem.")
 
 		actions = [parser.OFPActionOutput(out_port)]
 
 		# install a flow to avoid packet_in next time
 		if out_port != ofproto.OFPP_FLOOD:
 			match = parser.OFPMatch(in_port=in_port, eth_dst=dst)
+			self.logger.info("Ak nefloodujem, tak matchujem na zaklade in_portu %s a eth_dst %s",in_port,dst)
 			# verify if we have a valid buffer_id, if yes avoid to send both
 			# flow_mod & packet_out
+			self.logger.info("Vytvaram flow! Hento sa bude posielat portom %s",out_port)
 			if msg.buffer_id != ofproto.OFP_NO_BUFFER:
 				self.add_flow(datapath, 1, match, actions, msg.buffer_id)
 				return
@@ -183,15 +192,12 @@ class L2switch(app_manager.RyuApp):
 		data = None
 		if msg.buffer_id == ofproto.OFP_NO_BUFFER:
 			data = msg.data
-
-		out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
-								  in_port=in_port, actions=actions, data=data)
+		
+		match = parser.OFPMatch(in_port=in_port)
+		out = parser.OFPPacketOut(datapath, msg.buffer_id,
+								  match, actions, data)
 		datapath.send_msg(out)
+		self.logger.info("Aktualne flowy: ")
+		self.logger.info(commands.getstatusoutput('ovs-ofctl -OOpenFlow15 dump-flows s1'))
 
-	# @set_ev_cls(event.EventSwitchEnter)
-	# def get_topology_data(self, ev):
-		# switch_list = get_switch(self.topology_api_app, None)
-		# switches=[switch.dp.id for switch in switch_list]
-		# links_list = get_link(self.topology_api_app, None)
-		# links=[(link.src.dpid,link.dst.dpid,{'port':link.src.port_no}) for link in links_list]
 
