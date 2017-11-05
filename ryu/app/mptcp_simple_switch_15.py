@@ -57,6 +57,15 @@ class L2switch(app_manager.RyuApp):
 		self.add_flow(datapath, 0, match, actions)
 		self.logger.info("Vytvaram flow... Datapath: %s, match: %s, actions: %s",datapath, match,actions)
 
+#		match = parser.OFPMatch(eth_type=0x800,ip_proto=6,tcp_flags=0x002)
+#		actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
+#		self.add_flow(datapath, 1, match, actions)
+#		match = parser.OFPMatch(eth_type=0x800,ip_proto=6,tcp_flags=0x012)
+#		actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
+#		self.add_flow(datapath, 1, match, actions)
+#		match = parser.OFPMatch(eth_type=0x800,ip_proto=6,tcp_flags=0x010)
+#		actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
+#		self.add_flow(datapath, 1, match, actions)
 	def add_flow(self, datapath, priority, match, actions, buffer_id=None):
 		ofproto = datapath.ofproto
 		parser = datapath.ofproto_parser
@@ -110,22 +119,19 @@ class L2switch(app_manager.RyuApp):
 			print 'destination port: ',ht.dst_port
 
 			options = ht.option
-			flooduj = 0
-			#self.logger.info("packet in %s %s %s %s", datapath.id, src, dst, in_port)
 			if options:
 				if len(options) > 0:
 					for opt in options:
-						#print opt
 						if opt.kind == 30: # MPTCP
 							hexopt = binascii.hexlify(opt.value)
-							#print("ht.bits: ",ht.bits)
 							if hexopt[:2] == "00":          # MP_CAPABLE
 								if ht.bits == 2:            # SYN
-#		match = parser.OFPMatch(eth_type=0x800,ip_proto=6,tcp_flags=0x010)
-#		actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
-#		self.add_flow(datapath, 2, match, actions)
-									flooduj = 1
-									self.logger.info("Prisiel MP_CAPSYN. Nastavil som flooduj na 1")
+									
+						#			match = parser.OFPMatch(eth_type=0x800,eth_dst=src,ip_proto=6,tcp_flags=0x012)
+						#			actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
+						#			self.add_flow(datapath, 2, match, actions)
+									
+
 									keya = int(hexopt[4:],16)
 									tokena = int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16)
 									print("MP_CAPABLE SYN. Sender's key: ", int(hexopt[4:],16))
@@ -135,15 +141,24 @@ class L2switch(app_manager.RyuApp):
 									tokenb = int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16)
 									print("MP_CAPABLE SYN-ACK. Receivers'key: ", int(hexopt[4:],16))
 									print("MP_CAPABLE SYN-ACK. Subflow token generated from key: ", int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16))
+									
+						#			match = parser.OFPMatch(eth_type=0x800,eth_dst=src,ip_proto=6,tcp_flags=0x010)
+						#			actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
+						#			self.add_flow(datapath, 2, match, actions)
+								
 								elif ht.bits == 16:         # ACK
 									print("MP_CAPABLE ACK. Already have keys.")
 							elif hexopt[:2] == "10":        # MP_JOIN
 								if ht.bits == 2:            # SYN
-									flooduj = 1
-									self.logger.info("Prisiel MP_JOINSYN. Nastavil som flooduj na 1")
+						#			match = parser.OFPMatch(eth_type=0x800,eth_dst=src,ip_proto=6,tcp_flags=0x012)
+						#			actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
+						#			self.add_flow(datapath, 2, match, actions)
 									print("MP_JOIN SYN. Receiver's token: ", int(hexopt[4:][:8],16))
 									print("MP_JOIN SYN. Sender's nonce: ", int(hexopt[12:],16))
 								elif ht.bits == 18:         # SYN-ACK
+						#			match = parser.OFPMatch(eth_type=0x800,eth_dst=src,ip_proto=6,tcp_flags=0x010)
+						#			actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
+						#			self.add_flow(datapath, 2, match, actions)
 									print("MP_JOIN SYN-ACK. Sender's truncated HMAC :", int(hexopt[4:][:16],16))
 									print("MP_JOIN SYN-ACK. Sender's nonce: ", int(hexopt[20:],16))
 								elif ht.bits == 16:         # ACK
@@ -159,20 +174,19 @@ class L2switch(app_manager.RyuApp):
 		dpid = datapath.id
 		self.mac_to_port.setdefault(dpid, {})
 
-		#self.logger.info("packet in %s %s %s %s", dpid, src, dst, in_port)
 
 		# learn a mac address to avoid FLOOD next time.
 		self.mac_to_port[dpid][src] = in_port
 
 		
 
-		if dst in self.mac_to_port[dpid] and flooduj == 0:
+		if dst in self.mac_to_port[dpid]: #and flooduj == 0:
 			out_port = self.mac_to_port[dpid][dst]
 			self.logger.info("Mam adresu ale zaroven nemusim floodovat.")
 			self.logger.info("Nakazal som odosielat taketo veci portom c. %s",out_port)
 		else:
 			out_port = ofproto.OFPP_FLOOD
-			self.logger.info("Hodnota flooduj je %s",flooduj)
+			#self.logger.info("Hodnota flooduj je %s",flooduj)
 			self.logger.info("Floodujem.")
 
 		actions = [parser.OFPActionOutput(out_port)]
@@ -192,11 +206,12 @@ class L2switch(app_manager.RyuApp):
 		data = None
 		if msg.buffer_id == ofproto.OFP_NO_BUFFER:
 			data = msg.data
-		
+
 		match = parser.OFPMatch(in_port=in_port)
 		out = parser.OFPPacketOut(datapath, msg.buffer_id,
 								  match, actions, data)
 		datapath.send_msg(out)
+
 		self.logger.info("Aktualne flowy: ")
 		self.logger.info(commands.getstatusoutput('ovs-ofctl -OOpenFlow15 dump-flows s1'))
 
