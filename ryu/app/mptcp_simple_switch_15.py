@@ -130,13 +130,15 @@ class L2switch(app_manager.RyuApp):
 									# Pridanie flowu pre ACK od hosta do hostb
 
 									dpid = datapath.id
-									match = parser.OFPMatch(eth_type=0x800,eth_dst=dst, ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port,tcp_flags=0x010)
+									#match = parser.OFPMatch(eth_type=0x800,eth_dst=dst, ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port,tcp_flags=0x010)
+									match = parser.OFPMatch(eth_type=0x800,eth_dst=dst, ip_proto=6,tcp_flags=0x010)
 									actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
 									self.add_flow(datapath, 2, match, actions)
 									self.logger.info("Pridal som flow pre ACK src: %s, dst: %s:, src_port: %d, dst_port: %d, src_ip: %s, dst_ip: %s", src,dst,ht.src_port,ht.dst_port,t.src,t.dst)
 
 						#			# Pridanie flowu pre SYN-ACK od hostb do hosta
-									match = parser.OFPMatch(eth_type=0x800,eth_dst=src, ip_proto=6,ipv4_src=t.dst,ipv4_dst=t.src,tcp_src=ht.dst_port,tcp_dst=ht.src_port,tcp_flags=0x012)
+									#match = parser.OFPMatch(eth_type=0x800,eth_dst=src, ip_proto=6,ipv4_src=t.dst,ipv4_dst=t.src,tcp_src=ht.dst_port,tcp_dst=ht.src_port,tcp_flags=0x012)
+									match = parser.OFPMatch(eth_type=0x800,eth_dst=src, ip_proto=6,tcp_flags=0x012)
 									actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
 									self.add_flow(datapath, 2, match, actions)
 									self.logger.info("Pridal som flow pre SYN-ACK src: %s, dst: %s:, src_port: %d, dst_port: %d, src_ip: %s, dst_ip: %s", src,dst,ht.dst_port,ht.src_port,t.dst,t.src)
@@ -147,26 +149,28 @@ class L2switch(app_manager.RyuApp):
 									print("MP_CAPABLE SYN. Subflow token generated from key: ", int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16))
 								elif ht.bits == 18:         # SYN-ACK
 									self.logger.info("Prisiel MP_CAPABLE SYN-ACK. Prisiel lebo mam pravidlo pre neho. Toto pravidlo teraz zmazem.")
-									string = 'ovs-ofctl -OOpenFlow15 del-flows s1 "eth_dst='+dst+',tcp_flags=0x012"'
-									os.system(string)
+							#		string = 'ovs-ofctl -OOpenFlow15 del-flows s1 "eth_dst='+dst+',tcp_flags=0x012"'
+							#		os.system(string)
 									keyb = int(hexopt[4:],16)
 									tokenb = int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16)
 									print("MP_CAPABLE SYN-ACK. Receivers'key: ", int(hexopt[4:],16))
 									print("MP_CAPABLE SYN-ACK. Subflow token generated from key: ", int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16))
 								elif ht.bits == 16:         # ACK
 									self.logger.info("Prisiel MP_CAPABLE ACK. Prisiel lebo mam pravidlo pre neho. Toto pravidlo teraz zmazem.")
-									string = 'ovs-ofctl -OOpenFlow15 del-flows s1 "eth_dst='+dst+', tcp_flags=0x010"'
-									os.system(string)
+							#		string = 'ovs-ofctl -OOpenFlow15 del-flows s1 "eth_dst='+dst+', tcp_flags=0x010"'
+							#		os.system(string)
 									print("MP_CAPABLE ACK. Already have keys.")
 							elif hexopt[:2] == "10":        # MP_JOIN
 								if ht.bits == 2:            # SYN
 									dpid = datapath.id
-									match = parser.OFPMatch(eth_type=0x800,eth_dst=dst, ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port,tcp_flags=0x010)
+									#match = parser.OFPMatch(eth_type=0x800,eth_dst=dst, ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port,tcp_flags=0x010)
+									match = parser.OFPMatch(eth_type=0x800,eth_dst=dst, ip_proto=6,tcp_flags=0x010)
 									actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
 									self.add_flow(datapath, 2, match, actions)
 									self.logger.info("Pridal som flow pre ACK src: %s, dst: %s:, src_port: %d, dst_port: %d, src_ip: %s, dst_ip: %s", src,dst,ht.src_port,ht.dst_port,t.src,t.dst)
 
-									match = parser.OFPMatch(eth_type=0x800,eth_dst=src, ip_proto=6,ipv4_src=t.dst,ipv4_dst=t.src,tcp_src=ht.dst_port,tcp_dst=ht.src_port,tcp_flags=0x012)
+									#match = parser.OFPMatch(eth_type=0x800,eth_dst=src, ip_proto=6,ipv4_src=t.dst,ipv4_dst=t.src,tcp_src=ht.dst_port,tcp_dst=ht.src_port,tcp_flags=0x012)
+									match = parser.OFPMatch(eth_type=0x800,eth_dst=src, ip_proto=6,tcp_flags=0x012)
 									actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
 									self.add_flow(datapath, 2, match, actions)
 									self.logger.info("Pridal som flow pre SYN-ACK src: %s, dst: %s:, src_port: %d, dst_port: %d, src_ip: %s, dst_ip: %s", src,dst,ht.dst_port,ht.src_port,t.dst,t.src)
@@ -175,14 +179,14 @@ class L2switch(app_manager.RyuApp):
 									print("MP_JOIN SYN. Sender's nonce: ", int(hexopt[12:],16))
 								elif ht.bits == 18:         # SYN-ACK
 									self.logger.info("Prisiel MP_JOIN SYN-ACK. Prisiel lebo mam pravidlo pre neho. Toto pravidlo teraz zmazem.")
-									string = 'ovs-ofctl -OOpenFlow15 del-flows s1 "eth_dst='+dst+',tcp_flags=0x012"'
-									os.system(string)
+							#		string = 'ovs-ofctl -OOpenFlow15 del-flows s1 "eth_dst='+dst+',tcp_flags=0x012"'
+							#		os.system(string)
 									print("MP_JOIN SYN-ACK. Sender's truncated HMAC :", int(hexopt[4:][:16],16))
 									print("MP_JOIN SYN-ACK. Sender's nonce: ", int(hexopt[20:],16))
 								elif ht.bits == 16:         # ACK
 									self.logger.info("Prisiel MP_JOIN ACK. Prisiel lebo mam pravidlo pre neho. Toto pravidlo teraz zmazem.")
-									string = 'ovs-ofctl -OOpenFlow15 del-flows s1 "eth_dst='+dst+',tcp_flags=0x010"'
-									os.system(string)
+							#		string = 'ovs-ofctl -OOpenFlow15 del-flows s1 "eth_dst='+dst+',tcp_flags=0x010"'
+							#		os.system(string)
 									print("MP_JOIN ACK. Sender's HMAC :", hexopt[4:])
 
 			if ht.src_port == 80:
