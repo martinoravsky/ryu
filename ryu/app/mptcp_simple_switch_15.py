@@ -208,8 +208,6 @@ class L2switch(app_manager.RyuApp):
 			out_port = self.mac_to_port[dpid][dst]
 		else:
 			out_port = ofproto.OFPP_FLOOD
-			#self.logger.info("Hodnota flooduj je %s",flooduj)
-			self.logger.info("Floodujem.")
 
 		actions = [parser.OFPActionOutput(out_port)]
 
@@ -234,5 +232,3 @@ class L2switch(app_manager.RyuApp):
 
 		#self.logger.info("Aktualne flowy: ")
 		#self.logger.info(commands.getstatusoutput('ovs-ofctl -OOpenFlow15 dump-flows s1'))
-
-

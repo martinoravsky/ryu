@@ -29,14 +29,14 @@ from ryu.app.wsgi import ControllerBase
 #import networkx as nx
 import binascii
 import hashlib
-import os
 
 class L2switch(app_manager.RyuApp):
 	OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
-	
+
 	def __init__(self, *args, **kwargs):
 		super(L2switch, self).__init__(*args, **kwargs)
 		self.mac_to_port = {}
+
 	@set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
 	def switch_features_handler(self, ev):
 		datapath = ev.msg.datapath
@@ -96,8 +96,6 @@ class L2switch(app_manager.RyuApp):
 		src = eth.src
 
 
-		self.logger.info("Na controller dorazi paket. Predtym prisiel na Switch cislo %s, na port %s. Dst: %s, Src: %s",datapath.id,in_port,dst,src)
-
 		t = pkt.get_protocol(ipv4.ipv4)
 
 		if t:
@@ -111,64 +109,52 @@ class L2switch(app_manager.RyuApp):
 			print 'destination port: ',ht.dst_port
 
 			options = ht.option
+
 			if options:
 				if len(options) > 0:
 					for opt in options:
+						#print opt
 						if opt.kind == 30: # MPTCP
 							hexopt = binascii.hexlify(opt.value)
-							subtype = hexopt[:2]
-							#print("Vypisujem hexopt: ",hexopt)
-							#print("Vypisujem subtype: ",subtype)
-							if subtype == "00":          # MP_CAPABLE
+							#print("ht.bits: ",ht.bits)
+							if hexopt[:2] == "00":          # MP_CAPABLE
 								if ht.bits == 2:            # SYN
-									# Pridanie flowu pre ACK od hosta do hostb
-									command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+dst+',tcp,tcp_flags=0x002,actions=CONTROLLER:65535"'
-									os.system(command)
-									command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+src+',tcp,tcp_flags=0x012,actions=CONTROLLER:65535"'
-									os.system(command)
-									self.logger.info("Pridal som flow pre SYN-ACK z IP %s do IP %s. Ethsrc: %s, Ethdst: %s.",t.src,t.dst,dst,src)
 									keya = int(hexopt[4:],16)
 									tokena = int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16)
 									print("MP_CAPABLE SYN. Sender's key: ", int(hexopt[4:],16))
 									print("MP_CAPABLE SYN. Subflow token generated from key: ", int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16))
 								elif ht.bits == 18:         # SYN-ACK
-									self.logger.info("Pridal som flow pre ACK z IP %s do IP %s. Ethsrc: %s, Ethdst: %s.",t.src,t.dst,src,dst)
-									command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+src+',tcp,tcp_flags=0x010,actions=CONTROLLER:65535"'
-									os.system(command)
-									self.logger.info("Prisiel MP_CAPABLE SYN-ACK. Prisiel lebo mam pravidlo pre neho. Toto pravidlo teraz zmazem.")
 									keyb = int(hexopt[4:],16)
 									tokenb = int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16)
 									print("MP_CAPABLE SYN-ACK. Receivers'key: ", int(hexopt[4:],16))
 									print("MP_CAPABLE SYN-ACK. Subflow token generated from key: ", int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16))
 								elif ht.bits == 16:         # ACK
-									self.logger.info("Prisiel MP_CAPABLE ACK. Prisiel lebo mam pravidlo pre neho. Toto pravidlo teraz zmazem.")
 									print("MP_CAPABLE ACK. Already have keys.")
-							elif subtype == "10" or subtype == "11":        # MP_JOIN
+				#				if 'keya' in locals():
+				#					if 'keyb' in locals():
+				#						connections['keya'] = {'keyb':keyb}
+				#					if 'tokena' in locals():
+				#						connections['keya'] = {'tokena':tokena}
+				#					if 'tokenb' in locals():
+				#						connections['keya'] = {'tokenb':tokenb}
+								print(connections)
+							elif hexopt[:2] == "10":        # MP_JOIN
 								if ht.bits == 2:            # SYN
-									command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+dst+',tcp,tcp_flags=0x002,actions=CONTROLLER:65535"'
-									os.system(command)
-									command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+src+',tcp,tcp_flags=0x012,actions=CONTROLLER:65535"'
-									os.system(command)
-									self.logger.info("Pridal som flow pre JOIN SYN-ACK z IP %s do IP %s. Ethsrc: %s, Ethdst: %s.",t.src,t.dst,dst,src)
-
 									print("MP_JOIN SYN. Receiver's token: ", int(hexopt[4:][:8],16))
 									print("MP_JOIN SYN. Sender's nonce: ", int(hexopt[12:],16))
 								elif ht.bits == 18:         # SYN-ACK
-									self.logger.info("Prisiel MP_JOIN SYN-ACK. Prisiel lebo mam pravidlo pre neho. Toto pravidlo teraz zmazem.")
-									command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+src+',tcp,tcp_flags=0x010,actions=CONTROLLER:65535"'
-									os.system(command)
-									self.logger.info("Pridal som flow pre JOIN ACK z IP %s do IP %s. Ethsrc: %s, Ethdst: %s.",t.dst,t.src,src,dst)
 									print("MP_JOIN SYN-ACK. Sender's truncated HMAC :", int(hexopt[4:][:16],16))
 									print("MP_JOIN SYN-ACK. Sender's nonce: ", int(hexopt[20:],16))
 								elif ht.bits == 16:         # ACK
-									self.logger.info("Prisiel MP_JOIN ACK. Prisiel lebo mam pravidlo pre neho. Toto pravidlo teraz zmazem.")
 									print("MP_JOIN ACK. Sender's HMAC :", hexopt[4:])
+
 			if ht.src_port == 80:
 				print
 				'HTTP!!!'
 			elif ht.dst_port == 80:
 				print
 				'HTTP!!!'
+
 		dpid = datapath.id
 		self.mac_to_port.setdefault(dpid, {})
 
@@ -201,7 +187,6 @@ class L2switch(app_manager.RyuApp):
 		out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
 								  in_port=in_port, actions=actions, data=data)
 		datapath.send_msg(out)
-
 
 	# @set_ev_cls(event.EventSwitchEnter)
 	# def get_topology_data(self, ev):
