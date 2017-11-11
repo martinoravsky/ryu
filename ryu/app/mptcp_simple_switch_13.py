@@ -23,10 +23,10 @@ from ryu.lib.mac import haddr_to_bin
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet, ether_types
 from ryu.lib.packet import tcp, ipv4
-#from ryu.topology.api import get_switch, get_link
+from ryu.topology.api import get_switch, get_link
 from ryu.app.wsgi import ControllerBase
-#from ryu.topology import event, switches
-#import networkx as nx
+from ryu.topology import event, switches
+import networkx as nx
 import binascii
 import hashlib
 import os
@@ -37,6 +37,14 @@ class L2switch(app_manager.RyuApp):
 	def __init__(self, *args, **kwargs):
 		super(L2switch, self).__init__(*args, **kwargs)
 		self.mac_to_port = {}
+		self.topology_api_app = self
+		self.net = nx.DiGraph()
+		self.nodes = {}
+		self.links = {}
+		self.no_of_nodes = 0
+		self.no_of_links = 0
+		self.i = 0
+
 	@set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
 	def switch_features_handler(self, ev):
 		datapath = ev.msg.datapath
@@ -109,7 +117,7 @@ class L2switch(app_manager.RyuApp):
 		if ht:
 			print 'zdrojovy port: ',ht.src_port
 			print 'destination port: ',ht.dst_port
-
+			print datapath.id
 			options = ht.option
 			if options:
 				if len(options) > 0:
@@ -177,10 +185,26 @@ class L2switch(app_manager.RyuApp):
 		# learn a mac address to avoid FLOOD next time.
 		self.mac_to_port[dpid][src] = in_port
 
-		if dst in self.mac_to_port[dpid]:
-			out_port = self.mac_to_port[dpid][dst]
+		for f in msg.match.fields:
+			if f.header == ofproto_v1_3.OXM_OF_IN_PORT:
+				in_port = f.value
+
+		if src not in self.net:
+			self.net.add_node(src)
+			self.net.add_edge(dpid,src,port=in_port)
+			self.net.add_edge(src,dpid)
+		if dst in self.net:
+			print(nx.shortest_path(self.net,src,dst))
+			path = nx.shortest_path(self.net,src,dst)
+			next = path[path.index(dpid) + 1]
+			out_port = self.net[dpid][next]['port']
 		else:
 			out_port = ofproto.OFPP_FLOOD
+			
+	#	if dst in self.mac_to_port[dpid]:
+	#		out_port = self.mac_to_port[dpid][dst]
+	#	else:
+	#		out_port = ofproto.OFPP_FLOOD
 
 		actions = [parser.OFPActionOutput(out_port)]
 
@@ -203,10 +227,17 @@ class L2switch(app_manager.RyuApp):
 		datapath.send_msg(out)
 
 
-	# @set_ev_cls(event.EventSwitchEnter)
-	# def get_topology_data(self, ev):
-		# switch_list = get_switch(self.topology_api_app, None)
-		# switches=[switch.dp.id for switch in switch_list]
-		# links_list = get_link(self.topology_api_app, None)
-		# links=[(link.src.dpid,link.dst.dpid,{'port':link.src.port_no}) for link in links_list]
+	@set_ev_cls(event.EventSwitchEnter)
+	def get_topology_data(self, ev):
+		switch_list = get_switch(self.topology_api_app, None)
+		switches=[switch.dp.id for switch in switch_list]
+		self.net.add_nodes_from(switches)
 
+		links_list = get_link(self.topology_api_app, None)
+		links = [(link.src.dpid,link.dst.dpid,{'port':link.src.port_no}) for link in links_list]
+		self.net.add_edges_from(links)
+		links=[(link.dst.dpid,link.src.dpid,{'port':link.dst.port_no}) for link in links_list]
+		self.net.add_edges_from(links)
+		print(self.net.edges())
+		print(links)
+		print(switches)

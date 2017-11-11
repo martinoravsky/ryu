@@ -160,7 +160,7 @@ class L2switch(app_manager.RyuApp):
 							#		string = 'ovs-ofctl -OOpenFlow15 del-flows s1 "eth_dst='+dst+', tcp_flags=0x010"'
 							#		os.system(string)
 									print("MP_CAPABLE ACK. Already have keys.")
-							elif hexopt[:2] == "10":        # MP_JOIN
+							elif hexopt[:2] == "10" or hexopt[:2] == "11":        # MP_JOIN
 								if ht.bits == 2:            # SYN
 									dpid = datapath.id
 									#match = parser.OFPMatch(eth_type=0x800,eth_dst=dst, ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port,tcp_flags=0x010)
