@@ -28,7 +28,7 @@ from ryu.app.wsgi import ControllerBase
 from ryu.topology import event, switches
 import networkx as nx
 import binascii
-import hashlib
+import hashlib,hmac
 import os
 import mysql.connector
 from mysql.connector import Error
@@ -47,6 +47,24 @@ class L2switch(app_manager.RyuApp):
 				print('Connected do MySQL. Query: %s',query)
 				cursor = conn.cursor()
 				cursor.execute(query)
+		except Error as e:
+			print(e)
+		finally:
+			conn.commit()
+			conn.close()
+	
+	def executeSelect(self,query):
+		try:
+			conn = mysql.connector.connect(host='localhost',
+											database='mptcp',
+											user='debian-sys-maint',
+											password='QkrL9GepDeTtoTsM')
+			if conn.is_connected():
+				print('Connected do MySQL. Query: %s',query)
+				cursor = conn.cursor()
+				cursor.execute(query)
+				result = cursor.fetchone()
+				return result
 		except Error as e:
 			print(e)
 		finally:
@@ -157,50 +175,103 @@ class L2switch(app_manager.RyuApp):
 									os.system(command)
 									command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+src+',tcp,tcp_flags=0x012,actions=CONTROLLER:65535"'
 									os.system(command)
-									self.logger.info("Pridal som flow pre SYN-ACK z IP %s do IP %s. Ethsrc: %s, Ethdst: %s.",t.src,t.dst,dst,src)
-									keya = int(hexopt[4:],16)
-									tokena = int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16)
+									#self.logger.info("Pridal som flow pre SYN-ACK z IP %s do IP %s. Ethsrc: %s, Ethdst: %s.",t.src,t.dst,dst,src)
 									print("MP_CAPABLE SYN. Sender's key: ", int(hexopt[4:],16))
 									print("MP_CAPABLE SYN. Subflow token generated from key: ", int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16))
+									
+									keya = hexopt[4:]
+									tokena = int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16)
+									
 									values = {'tsrc':t.src,'tdst':t.dst,'keya':keya,'tokena':tokena,'htsrc_port':ht.src_port,'htdst_port':ht.dst_port}
-									query = "INSERT INTO mptcp.conn (ip_src,ip_dst,keya,tokena,tcp_src,tcp_dst) values('{tsrc}','{tdst}',{keya},{tokena},{htsrc_port},{htdst_port});"
+									query = "INSERT INTO mptcp.conn (ip_src,ip_dst,keya,tokena,tcp_src,tcp_dst) values('{tsrc}','{tdst}','{keya}',{tokena},{htsrc_port},{htdst_port});"
 									self.executeInsert(query.format(**values))
+
 								elif ht.bits == 18:         # SYN-ACK
-									self.logger.info("Pridal som flow pre ACK z IP %s do IP %s. Ethsrc: %s, Ethdst: %s.",t.src,t.dst,src,dst)
+									#self.logger.info("Pridal som flow pre ACK z IP %s do IP %s. Ethsrc: %s, Ethdst: %s.",t.src,t.dst,src,dst)
 									command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+src+',tcp,tcp_flags=0x010,actions=CONTROLLER:65535"'
 									os.system(command)
-									self.logger.info("Prisiel MP_CAPABLE SYN-ACK. Prisiel lebo mam pravidlo pre neho. Toto pravidlo teraz zmazem.")
-									keyb = int(hexopt[4:],16)
+									#self.logger.info("Prisiel MP_CAPABLE SYN-ACK. Prisiel lebo mam pravidlo pre neho. Toto pravidlo teraz zmazem.")
+									keyb = hexopt[4:]
 									tokenb = int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16)
+									
 									values = {'tsrc':t.src,'tdst':t.dst,'htsrc_port':ht.src_port,'htdst_port':ht.dst_port,'keyb':keyb,'tokenb':tokenb}
-									query = "UPDATE mptcp.conn SET keyb={keyb},tokenb={tokenb} WHERE ip_src='{tdst}' AND ip_dst='{tsrc}' AND tcp_src={htdst_port} AND tcp_dst={htsrc_port};"
-									print(query.format(**values))
+									query = "UPDATE mptcp.conn SET keyb='{keyb}',tokenb={tokenb} WHERE ip_src='{tdst}' AND ip_dst='{tsrc}' AND tcp_src={htdst_port} AND tcp_dst={htsrc_port};"
 									self.executeInsert(query.format(**values))
+
+									#print(query.format(**values))
 									print("MP_CAPABLE SYN-ACK. Receivers'key: ", int(hexopt[4:],16))
 									print("MP_CAPABLE SYN-ACK. Subflow token generated from key: ", int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16))
 								elif ht.bits == 16:         # ACK
 									self.logger.info("Prisiel MP_CAPABLE ACK. Prisiel lebo mam pravidlo pre neho. Toto pravidlo teraz zmazem.")
 									print("MP_CAPABLE ACK. Already have keys.")
+									command = 'ovs-ofctl -OOpenFlow13 del-flows s1 "eth_dst='+dst+',tcp,tcp_flags=0x010"'
+									os.system(command)
 							elif subtype == "10" or subtype == "11":        # MP_JOIN
 								if ht.bits == 2:            # SYN
 									command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+dst+',tcp,tcp_flags=0x002,actions=CONTROLLER:65535"'
 									os.system(command)
 									command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+src+',tcp,tcp_flags=0x012,actions=CONTROLLER:65535"'
 									os.system(command)
-									self.logger.info("Pridal som flow pre JOIN SYN-ACK z IP %s do IP %s. Ethsrc: %s, Ethdst: %s.",t.src,t.dst,dst,src)
+									#self.logger.info("Pridal som flow pre JOIN SYN-ACK z IP %s do IP %s. Ethsrc: %s, Ethdst: %s.",t.src,t.dst,dst,src)
+									tokenb = int(hexopt[4:][:8],16)
+									noncea = hexopt[12:]
+									
+									values = {'tsrc':t.src,'tdst':t.dst,'tokenb':tokenb,'noncea':noncea,'htsrc_port':ht.src_port,'htdst_port':ht.dst_port}
+									query = "INSERT INTO mptcp.subflow (ip_src,ip_dst,tokenb,noncea,tcp_src,tcp_dst) values('{tsrc}','{tdst}',{tokenb},'{noncea}',{htsrc_port},{htdst_port});"
+									self.executeInsert(query.format(**values))
 
 									print("MP_JOIN SYN. Receiver's token: ", int(hexopt[4:][:8],16))
 									print("MP_JOIN SYN. Sender's nonce: ", int(hexopt[12:],16))
 								elif ht.bits == 18:         # SYN-ACK
-									self.logger.info("Prisiel MP_JOIN SYN-ACK. Prisiel lebo mam pravidlo pre neho. Toto pravidlo teraz zmazem.")
+									#self.logger.info("Prisiel MP_JOIN SYN-ACK. Prisiel lebo mam pravidlo pre neho. Toto pravidlo teraz zmazem.")
 									command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+src+',tcp,tcp_flags=0x010,actions=CONTROLLER:65535"'
 									os.system(command)
-									self.logger.info("Pridal som flow pre JOIN ACK z IP %s do IP %s. Ethsrc: %s, Ethdst: %s.",t.dst,t.src,src,dst)
+									#self.logger.info("Pridal som flow pre JOIN ACK z IP %s do IP %s. Ethsrc: %s, Ethdst: %s.",t.dst,t.src,src,dst)
+
+									trunhash = int(hexopt[4:][:16],16)
+									nonceb = hexopt[20:]
 									print("MP_JOIN SYN-ACK. Sender's truncated HMAC :", int(hexopt[4:][:16],16))
 									print("MP_JOIN SYN-ACK. Sender's nonce: ", int(hexopt[20:],16))
+									
+									values = {'tsrc':t.src,'tdst':t.dst,'htsrc_port':ht.src_port,'htdst_port':ht.dst_port,'trunhash':trunhash,'nonceb':nonceb}
+									query = "UPDATE mptcp.subflow SET trunhash={trunhash},nonceb='{nonceb}' WHERE ip_src='{tdst}' AND ip_dst='{tsrc}' AND tcp_src={htdst_port} AND tcp_dst={htsrc_port};"
+									self.executeInsert(query.format(**values))
 								elif ht.bits == 16:         # ACK
-									self.logger.info("Prisiel MP_JOIN ACK. Prisiel lebo mam pravidlo pre neho. Toto pravidlo teraz zmazem.")
+									hmachash = hexopt[4:]
+									values = {'tsrc':t.src,'tdst':t.dst,'htsrc_port':ht.src_port,'htdst_port':ht.dst_port,'hmachash':hmachash}
+									query = "UPDATE mptcp.subflow SET hash='{hmachash}' WHERE ip_src='{tsrc}' AND ip_dst='{tdst}' AND tcp_src={htsrc_port} AND tcp_dst={htdst_port};"
+									self.executeInsert(query.format(**values))
+									#self.logger.info("Prisiel MP_JOIN ACK. Prisiel lebo mam pravidlo pre neho. Toto pravidlo teraz zmazem.")
 									print("MP_JOIN ACK. Sender's HMAC :", hexopt[4:])
+									command = 'ovs-ofctl -OOpenFlow13 del-flows s1 "eth_dst='+dst+',tcp,tcp_flags=0x010"'
+									os.system(command)
+
+									# Pocitanie hashov
+									values = {'tsrc':t.src,'tdst':t.dst,'htsrc_port':ht.src_port,'htdst_port':ht.dst_port}
+									query = "SELECT keya,keyb from conn where tokenb in (SELECT tokenb from subflow where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port});"
+									keys = self.executeSelect(query.format(**values))
+									print(query.format(**values))
+									print(keys)
+								
+									values = {'tsrc':t.src,'tdst':t.dst,'htsrc_port':ht.src_port,'htdst_port':ht.dst_port}
+									query = "SELECT noncea,nonceb from subflow where ip_src='{tsrc}' AND ip_dst='{tdst}' AND tcp_src={htsrc_port} AND tcp_dst={htdst_port};"
+									nonces = self.executeSelect(query.format(**values))
+									print(query.format(**values))
+									print(nonces)
+									print(keys[0]+keys[1])
+									print(nonces[0]+nonces[1])
+
+									key = binascii.unhexlify(keys[0]+keys[1])
+									msg = binascii.unhexlify(nonces[0]+nonces[1])
+									vysledok = hmac.new(key,msg, hashlib.sha1).hexdigest()
+									print(vysledok)
+									if vysledok == hmachash:
+										values = {'tsrc':t.src,'tdst':t.dst,'htsrc_port':ht.src_port,'htdst_port':ht.dst_port}
+										query = "SELECT id from conn where tokenb in (SELECT tokenb from subflow where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port});"
+										ids = self.executeSelect(query.format(**values))[0]
+										values = {'tsrc':t.src,'tdst':t.dst,'htsrc_port':ht.src_port,'htdst_port':ht.dst_port, 'id':ids}
+										query = "update subflow set connid = {id} where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port};"
+										self.executeInsert(query.format(**values))
 			if ht.src_port == 80:
 				print
 				'HTTP!!!'
