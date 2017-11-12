@@ -30,10 +30,29 @@ import networkx as nx
 import binascii
 import hashlib
 import os
+import mysql.connector
+from mysql.connector import Error
+
 
 class L2switch(app_manager.RyuApp):
 	OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
-	
+
+	def executeInsert(self,query):
+		try:
+			conn = mysql.connector.connect(host='localhost',
+											database='mptcp',
+											user='debian-sys-maint',
+											password='QkrL9GepDeTtoTsM')
+			if conn.is_connected():
+				print('Connected do MySQL. Query: %s',query)
+				cursor = conn.cursor()
+				cursor.execute(query)
+		except Error as e:
+			print(e)
+		finally:
+			conn.commit()
+			conn.close()
+
 	def __init__(self, *args, **kwargs):
 		super(L2switch, self).__init__(*args, **kwargs)
 		self.mac_to_port = {}
@@ -44,6 +63,12 @@ class L2switch(app_manager.RyuApp):
 		self.no_of_nodes = 0
 		self.no_of_links = 0
 		self.i = 0
+		self.executeInsert("DELETE FROM mptcp.conn;")
+		self.executeInsert("DELETE FROM mptcp.subflow;")
+
+
+
+
 
 	@set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
 	def switch_features_handler(self, ev):
@@ -78,8 +103,6 @@ class L2switch(app_manager.RyuApp):
 									match=match, instructions=inst)
 		datapath.send_msg(mod)
 
-	global connections
-	connections = {}
 	@set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
 	def _packet_in_handler(self, ev):
 		# If you hit this you might want to increase
@@ -139,6 +162,9 @@ class L2switch(app_manager.RyuApp):
 									tokena = int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16)
 									print("MP_CAPABLE SYN. Sender's key: ", int(hexopt[4:],16))
 									print("MP_CAPABLE SYN. Subflow token generated from key: ", int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16))
+									values = {'tsrc':t.src,'tdst':t.dst,'keya':keya,'tokena':tokena,'htsrc_port':ht.src_port,'htdst_port':ht.dst_port}
+									query = "INSERT INTO mptcp.conn (ip_src,ip_dst,keya,tokena,tcp_src,tcp_dst) values('{tsrc}','{tdst}',{keya},{tokena},{htsrc_port},{htdst_port});"
+									self.executeInsert(query.format(**values))
 								elif ht.bits == 18:         # SYN-ACK
 									self.logger.info("Pridal som flow pre ACK z IP %s do IP %s. Ethsrc: %s, Ethdst: %s.",t.src,t.dst,src,dst)
 									command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+src+',tcp,tcp_flags=0x010,actions=CONTROLLER:65535"'
@@ -146,6 +172,10 @@ class L2switch(app_manager.RyuApp):
 									self.logger.info("Prisiel MP_CAPABLE SYN-ACK. Prisiel lebo mam pravidlo pre neho. Toto pravidlo teraz zmazem.")
 									keyb = int(hexopt[4:],16)
 									tokenb = int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16)
+									values = {'tsrc':t.src,'tdst':t.dst,'htsrc_port':ht.src_port,'htdst_port':ht.dst_port,'keyb':keyb,'tokenb':tokenb}
+									query = "UPDATE mptcp.conn SET keyb={keyb},tokenb={tokenb} WHERE ip_src='{tdst}' AND ip_dst='{tsrc}' AND tcp_src={htdst_port} AND tcp_dst={htsrc_port};"
+									print(query.format(**values))
+									self.executeInsert(query.format(**values))
 									print("MP_CAPABLE SYN-ACK. Receivers'key: ", int(hexopt[4:],16))
 									print("MP_CAPABLE SYN-ACK. Subflow token generated from key: ", int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8],16))
 								elif ht.bits == 16:         # ACK
