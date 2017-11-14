@@ -44,11 +44,13 @@ def myNetwork():
     _intf = Intf( 'eth1', node=s1 )
     _intf = Intf( 'eth2', node=s1 )
     _intf = Intf( 'eth3', node=s1 )
+ #   _intf = Intf( 'eth4', node=s1 )
 
     call(['ovs-vsctl','add-port','s1','eth0'])
     call(['ovs-vsctl','add-port','s1','eth1'])
     call(['ovs-vsctl','add-port','s1','eth2'])
     call(['ovs-vsctl','add-port','s1','eth3'])
+#    call(['ovs-vsctl','add-port','s1','eth4'])
     CLI(net)
     net.stop()
 
