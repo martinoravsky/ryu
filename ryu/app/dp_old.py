@@ -92,12 +92,6 @@ class L2switch(app_manager.RyuApp):
 										  ofproto.OFPCML_NO_BUFFER)]
 		self.add_flow(datapath, 0, match, actions)
 
-		# Install flow for all TCP traffic
-		match = parser.OFPMatch(eth_type=0x0800,ip_proto=6)
-		actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
-										  ofproto.OFPCML_NO_BUFFER)]
-		self.add_flow(datapath, 2, match, actions)
-
 	def add_flow(self, datapath, priority, match, actions, buffer_id=None):
 		"""
 		Add flow to switch based on priority, match and actions
@@ -173,17 +167,11 @@ class L2switch(app_manager.RyuApp):
 							if ht.bits == 2:
 								self.logger.info("MP_CAPABLE SYN")
 
-								# Send A->B traffic to controller
-								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
-								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
-											  ofproto.OFPCML_NO_BUFFER)]
-								self.add_flow(datapath, 3, match, actions)
-
-								# Send B->A traffic to controller
-								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.dst,ipv4_dst=t.src,tcp_src=ht.dst_port,tcp_dst=ht.src_port)
-								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
-											  ofproto.OFPCML_NO_BUFFER)]
-								self.add_flow(datapath, 3, match, actions)
+								# Add flow for SYN and SYN-ACK for opposite direction.
+								command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+dst+',tcp,tcp_flags=0x002,actions=CONTROLLER:65535"'
+								os.system(command)
+								command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+src+',tcp,tcp_flags=0x012,actions=CONTROLLER:65535"'
+								os.system(command)
 
 								# Sender's key.
 								keya = hexopt[4:]
@@ -198,18 +186,10 @@ class L2switch(app_manager.RyuApp):
 							# MP_CAPABLE SYN-ACK
 							elif ht.bits == 18:
 								self.logger.info("MP_CAPABLE SYN-ACK")
-								
-								# Change out_port so traffic does not go to controller anymore
-								dpid=datapath.id
-								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
-								
-								if dst in self.mac_to_port[dpid]:
-									out_port = self.mac_to_port[dpid][dst]
-								else:
-									out_port = ofproto.OFPP_FLOOD
 
-								actions = [parser.OFPActionOutput(out_port)]
-								self.add_flow(datapath, 3, match, actions)
+								# Add flow for ACK for the opposite direction. 
+								command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+src+',tcp,tcp_flags=0x010,actions=CONTROLLER:65535"'
+								os.system(command)
 
 								# Receiver's key.
 								keyb = hexopt[4:]
@@ -225,18 +205,6 @@ class L2switch(app_manager.RyuApp):
 							# MP_CAPABLE ACK
 							elif ht.bits == 16:
 								self.logger.info("MP_CAPABLE ACK")
-								
-								# Change out_port so traffic does not go to controller anymore
-								dpid = datapath.id
-								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
-								
-								if dst in self.mac_to_port[dpid]:
-									out_port = self.mac_to_port[dpid][dst]
-								else:
-									out_port = ofproto.OFPP_FLOOD
-
-								actions = [parser.OFPActionOutput(out_port)]
-								self.add_flow(datapath, 3, match, actions)
 
 								#paths = nx.all_shortest_paths(self.net,src,dst)
 								#for p in paths:
@@ -251,18 +219,12 @@ class L2switch(app_manager.RyuApp):
 							# MP_JOIN SYN 
 							if ht.bits == 2:
 								self.logger.info("MP_JOIN SYN")
-							
-								# Send A->B traffic to controller
-								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
-								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
-											  ofproto.OFPCML_NO_BUFFER)]
-								self.add_flow(datapath, 3, match, actions)
-
-								# Send B->A traffic to controller
-								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.dst,ipv4_dst=t.src,tcp_src=ht.dst_port,tcp_dst=ht.src_port)
-								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
-											  ofproto.OFPCML_NO_BUFFER)]
-								self.add_flow(datapath, 3, match, actions)
+								
+								# Add flow for SYN and for SYN-ACK for opposite direction. 
+								command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+dst+',tcp,tcp_flags=0x002,actions=CONTROLLER:65535"'
+								os.system(command)
+								command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+src+',tcp,tcp_flags=0x012,actions=CONTROLLER:65535"'
+								os.system(command)
 
 								# Receiver's token. From the MPTCP connection. 
 								tokenb = int(hexopt[4:][:8],16)
@@ -278,18 +240,10 @@ class L2switch(app_manager.RyuApp):
 							# MP_JOIN SYN-ACK
 							elif ht.bits == 18:
 								self.logger.info("MP_JOIN SYN-ACK.")
-								
-								# Change out_port so traffic does not go to controller anymore
-								dpid=datapath.id
-								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
-								
-								if dst in self.mac_to_port[dpid]:
-									out_port = self.mac_to_port[dpid][dst]
-								else:
-									out_port = ofproto.OFPP_FLOOD
 
-								actions = [parser.OFPActionOutput(out_port)]
-								self.add_flow(datapath, 3, match, actions)
+								# Add flow for ACK for opposite direction.
+								command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+src+',tcp,tcp_flags=0x010,actions=CONTROLLER:65535"'
+								os.system(command)
 
 								# Receiver's truncated HASH. 
 								trunhash = int(hexopt[4:][:16],16)
@@ -306,18 +260,6 @@ class L2switch(app_manager.RyuApp):
 							elif ht.bits == 16:
 								self.logger.info("MP_JOIN ACK.")
 
-								# Change out_port so traffic does not go to controller anymore
-								dpid = datapath.id
-								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
-								
-								if dst in self.mac_to_port[dpid]:
-									out_port = self.mac_to_port[dpid][dst]
-								else:
-									out_port = ofproto.OFPP_FLOOD
-
-								actions = [parser.OFPActionOutput(out_port)]
-								self.add_flow(datapath, 3, match, actions)
-
 								# Sender's HASH.
 								hmachash = hexopt[4:]
 
@@ -326,6 +268,10 @@ class L2switch(app_manager.RyuApp):
 								query = "UPDATE mptcp.subflow SET hash='{hmachash}' WHERE ip_src='{tsrc}' AND ip_dst='{tdst}' AND tcp_src={htsrc_port} AND tcp_dst={htdst_port};"
 								self.executeInsert(query.format(**values))
 
+								# Delete flow for ACK. 
+#									command = 'ovs-ofctl -OOpenFlow13 del-flows s1 "eth_dst='+dst+',tcp,tcp_flags=0x010"'
+#									os.system(command)
+#
 								# Select keys from appropriate connection based on receiver's token. 
 								values = {'tsrc':t.src,'tdst':t.dst,'htsrc_port':ht.src_port,'htdst_port':ht.dst_port}
 								query = "SELECT keya,keyb from conn where tokenb in (SELECT tokenb from subflow where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port});"
