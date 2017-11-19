@@ -15,6 +15,7 @@ import networkx as nx
 import binascii, hashlib, hmac, os, mysql.connector
 from mysql.connector import Error
 import random
+from random import randrange
 
 
 class L2switch(app_manager.RyuApp):
@@ -175,7 +176,12 @@ class L2switch(app_manager.RyuApp):
 							# MP CAPABLE SYN      
 							if ht.bits == 2:
 								self.logger.info("MP_CAPABLE SYN")
-
+								dpid = datapath.id
+								if src not in self.net:
+									self.net.add_node(src)
+									self.net.add_edge(dpid,src,port=in_port)
+									self.net.add_edge(src,dpid)
+								
 								# Send A->B traffic to controller
 								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
 								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
@@ -202,17 +208,35 @@ class L2switch(app_manager.RyuApp):
 							elif ht.bits == 18:
 								self.logger.info("MP_CAPABLE SYN-ACK")
 								
-								# Change out_port so traffic does not go to controller anymore
 								dpid=datapath.id
-								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
-								
-								if dst in self.mac_to_port[dpid]:
-									out_port = self.mac_to_port[dpid][dst]
-								else:
-									out_port = ofproto.OFPP_FLOOD
+								if src not in self.net:
+									self.net.add_node(src)
+									self.net.add_edge(dpid,src,port=in_port)
+									self.net.add_edge(src,dpid)
 
+								# Change out_port so traffic does not go to controller anymore
+								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
+								# All shortest paths between srcmac and dst mac							
+								paths = list(nx.all_shortest_paths(self.net,src,dst))
+								print("Found path for SYN-ACK. %s to %s Its:", src, dst)
+							
+								# Random index in list of paths
+								path_index = randrange(0,len(paths))
+								print ("Volim random index z 0 az do %d. Zvolil som: %d'",len(paths),path_index)
+								# Select random path 
+								path = paths[path_index]
+								print(path)
+								
+								macs = dst+'-'+src
+								self.connpaths[macs] = path_index
+								print ("Zlozil som kluc do connpaths: %s. Pridelil som path_index %d. Obsah conppaths:",macs,path_index)
+								print(self.connpaths)
+								next = path[path.index(dpid)+1]
+								
+								out_port = self.net[dpid][next]['port']
+								print ("Out_port: %d", out_port)
 								actions = [parser.OFPActionOutput(out_port)]
-								self.add_flow(datapath, 3, match, actions)
+								self.add_flow(datapath, 4, match, actions)
 
 								# Receiver's key.
 								keyb = hexopt[4:]
@@ -232,14 +256,25 @@ class L2switch(app_manager.RyuApp):
 								# Change out_port so traffic does not go to controller anymore
 								dpid = datapath.id
 								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
-								
-								if dst in self.mac_to_port[dpid]:
-									out_port = self.mac_to_port[dpid][dst]
-								else:
-									out_port = ofproto.OFPP_FLOOD
+						
+								# Construct key in connpaths	
+								macs = src+'-'+dst
+								print ('Som v ACK. macs: %s',macs)
 
+								# Get all shortest paths
+								paths = list(nx.all_shortest_paths(self.net,src,dst))
+								path = paths[self.connpaths[macs]]
+
+								print('Random index v ACK: ',self.connpaths[macs])
+								print("Found path for ACK. %s to %s Its:", src, dst)
+								print(path)	
+								next = path[path.index(dpid)+1]
+								
+								out_port = self.net[dpid][next]['port']
+								
+								print ("Out_port: %d", out_port)
 								actions = [parser.OFPActionOutput(out_port)]
-								self.add_flow(datapath, 3, match, actions)
+								self.add_flow(datapath, 4, match, actions)
 
 								command = 'ovs-ofctl -OOpenFlow13 del-flows s1 "eth_dst='+dst+',tcp,tcp_flags=0x010"'
 								os.system(command)
@@ -250,7 +285,12 @@ class L2switch(app_manager.RyuApp):
 							# MP_JOIN SYN 
 							if ht.bits == 2:
 								self.logger.info("MP_JOIN SYN")
-							
+								dpid = datapath.id
+								if src not in self.net:
+									self.net.add_node(src)
+									self.net.add_edge(dpid,src,port=in_port)
+									self.net.add_edge(src,dpid)
+
 								# Send A->B traffic to controller
 								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
 								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
@@ -282,14 +322,31 @@ class L2switch(app_manager.RyuApp):
 								dpid=datapath.id
 								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
 								
-								if dst in self.mac_to_port[dpid]:
-									out_port = self.mac_to_port[dpid][dst]
-								else:
-									out_port = ofproto.OFPP_FLOOD
-
+								if src not in self.net:
+									self.net.add_node(src)
+									self.net.add_edge(dpid,src,port=in_port)
+									self.net.add_edge(src,dpid)
+								
+								paths = list(nx.all_shortest_paths(self.net,src,dst))
+								print("Found path for SYN-ACK. %s to %s Its:", src, dst)
+								# Random index in list of paths
+								path_index = randrange(0,len(paths))
+								print ("JOIN volim random index z 0 az do %d. Zvolil som: %d'",len(paths),path_index)
+								# Select random path 
+								path = paths[path_index]
+								print(path)
+								
+								macs = dst+'-'+src
+								self.connpaths[macs] = path_index
+								print ("Zlozil som kluc do connpaths: %s. Pridelil som path_index %d. Obsah conppaths:",macs,path_index)
+								print(self.connpaths)
+								next = path[path.index(dpid)+1]
+								
+								out_port = self.net[dpid][next]['port']
+								print ("Out_port: %d", out_port)
 								actions = [parser.OFPActionOutput(out_port)]
-								self.add_flow(datapath, 3, match, actions)
-
+								self.add_flow(datapath, 4, match, actions)
+								
 								# Receiver's truncated HASH. 
 								trunhash = int(hexopt[4:][:16],16)
 
@@ -308,14 +365,24 @@ class L2switch(app_manager.RyuApp):
 								# Change out_port so traffic does not go to controller anymore
 								dpid = datapath.id
 								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
-								
-								if dst in self.mac_to_port[dpid]:
-									out_port = self.mac_to_port[dpid][dst]
-								else:
-									out_port = ofproto.OFPP_FLOOD
 
+								# Construct key in connpaths								
+								macs = src+'-'+dst
+								print ('Som v  JOIN ACK. macs: %s',macs)
+
+								# Get all paths 
+								paths = list(nx.all_shortest_paths(self.net,src,dst))
+								path = paths[self.connpaths[macs]]
+								print('Random index v ACK: ',self.connpaths[macs])
+								print("Found path for ACK. %s to %s Its:", src, dst)
+								print(path)	
+								next = path[path.index(dpid)+1]
+								
+								out_port = self.net[dpid][next]['port']
+								
+								print ("Out_port: %d", out_port)
 								actions = [parser.OFPActionOutput(out_port)]
-								self.add_flow(datapath, 3, match, actions)
+								self.add_flow(datapath, 4, match, actions)
 
 								# Sender's HASH.
 								hmachash = hexopt[4:]

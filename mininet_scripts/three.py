@@ -34,7 +34,6 @@ def myNetwork():
 	info( '*** Add links\n' )
 
 	net.addLink( s1, s2 )
-	net.addLink( s2, s3 )
 	info( '*** Starting network\n')
 	net.build()
 	info( '*** Starting controllers\n')
@@ -51,13 +50,13 @@ def myNetwork():
 	info( '*** Add interfaces to switch ***' )
 	
 	_intf = Intf( 'eth0', node=s1 )
-	_intf = Intf( 'eth1', node=s1 )
-	_intf = Intf( 'eth2', node=s3 )
+	_intf = Intf( 'eth1', node=s3 )
+	_intf = Intf( 'eth2', node=s2 )
 	_intf = Intf( 'eth3', node=s3 )
 
 	call(['ovs-vsctl','add-port','s1','eth0'])
-	call(['ovs-vsctl','add-port','s1','eth1'])
-	call(['ovs-vsctl','add-port','s3','eth2'])
+	call(['ovs-vsctl','add-port','s3','eth1'])
+	call(['ovs-vsctl','add-port','s2','eth2'])
 	call(['ovs-vsctl','add-port','s3','eth3'])
 	CLI(net)
 	net.stop()
