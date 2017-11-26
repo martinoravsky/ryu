@@ -268,20 +268,20 @@ class L2switch(app_manager.RyuApp):
 								found_path = 1
 								dpid = datapath.id
 								paths = list(nx.all_shortest_paths(self.net,src,dst))
-								macs = src+'-'+dst
-
-								if macs in self.connpaths: #Ak uz mam zvolenu cestu
-									self.logger.info("Pre takyto srcdst uz mam zvolenu cestu. Pouzijem tuto cestu:")
-									path = paths[self.connpaths[macs]]
-									print(path)
-								else:
-									self.logger.info("Pre takyto srcdst nemam este cestu. Pouzijem tuto cestu:")
-									path_index = randrange(0,len(paths))
-									path = paths[path_index]
-									self.connpaths[macs] = path_index
-									print(path)
-									print(self.connpaths[macs])
-									self.logger.info("Takyto je random index: %d.",path_index)
+#								macs = src+'-'+dst
+								path = random.choice(paths)
+#								if macs in self.connpaths: #Ak uz mam zvolenu cestu
+#									self.logger.info("Pre takyto srcdst uz mam zvolenu cestu. Pouzijem tuto cestu:")
+#									path = paths[self.connpaths[macs]]
+#									print(path)
+#								else:
+#									self.logger.info("Pre takyto srcdst nemam este cestu. Pouzijem tuto cestu:")
+#									path_index = randrange(0,len(paths))
+#									path = paths[path_index]
+#									self.connpaths[macs] = path_index
+#									print(path)
+#									print(self.connpaths[macs])
+#									self.logger.info("Takyto je random index: %d.",path_index)
 							
 								#path=['08:00:27:5f:ab:7f', 1, 5, 6, '08:00:27:77:27:8c']
 								fullpath = path
@@ -354,20 +354,20 @@ class L2switch(app_manager.RyuApp):
 								found_path = 1
 								dpid = datapath.id
 								paths = list(nx.all_shortest_paths(self.net,src,dst))
-								macs = src+'-'+dst
-
-								if macs in self.connpaths: #Ak uz mam zvolenu cestu
-									self.logger.info("Pre takyto srcdst uz mam zvolenu cestu. Pouzijem tuto cestu:")
-									path = paths[self.connpaths[macs]]
-									print(path)
-								else:
-									self.logger.info("Pre takyto srcdst nemam este cestu. Pouzijem tuto cestu:")
-									path_index = randrange(0,len(paths))
-									path = paths[path_index]
-									self.connpaths[macs] = path_index
-									print(path)
-									print(self.connpaths[macs])
-									self.logger.info("Takyto je random index: %d.",path_index)
+    #							macs = src+'-'+dst
+								path = random.choice(paths)
+	#							if macs in self.connpaths: #Ak uz mam zvolenu cestu
+	#								self.logger.info("Pre takyto srcdst uz mam zvolenu cestu. Pouzijem tuto cestu:")
+	#								path = paths[self.connpaths[macs]]
+	#								print(path)
+	#							else:
+	#								self.logger.info("Pre takyto srcdst nemam este cestu. Pouzijem tuto cestu:")
+	#								path_index = randrange(0,len(paths))
+	#								path = paths[path_index]
+	#								self.connpaths[macs] = path_index
+	#								print(path)
+	#								print(self.connpaths[macs])
+	#								self.logger.info("Takyto je random index: %d.",path_index)
 								
 								fullpath = path
 								tmppath = path[1:-1]
