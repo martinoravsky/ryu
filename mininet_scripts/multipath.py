@@ -30,12 +30,9 @@ def myNetwork():
 	s1 = net.addSwitch('s1', cls=OVSKernelSwitch, protocols='OpenFlow13')
 	s2 = net.addSwitch('s2', cls=OVSKernelSwitch, protocols='OpenFlow13')
 	s3 = net.addSwitch('s3', cls=OVSKernelSwitch, protocols='OpenFlow13')
-	s4 = net.addSwitch('s4', cls=OVSKernelSwitch, protocols='OpenFlow13')
 
 	info( '*** Add links\n' )
 
-	net.addLink( s1, s2 )
-	net.addLink( s1, s3 )
 
 	info( '*** Starting network\n')
 	net.build()
@@ -47,23 +44,24 @@ def myNetwork():
 	net.get('s1').start([c0])
 	net.get('s2').start([c0])
 	net.get('s3').start([c0])
-	net.get('s4').start([c0])
 
 	info( '*** Post configure switches and hosts\n')
 
 	info( '*** Add interfaces to switch ***' )
 	
 	_intf = Intf( 'eth0', node=s1 )
-	_intf = Intf( 'eth1', node=s4 )
-	_intf = Intf( 'eth2', node=s2 )
-	_intf = Intf( 'eth3', node=s3 )
-	_intf = Intf( 'eth4', node=s4 )
+	_intf = Intf( 'eth1', node=s2 )
+	_intf = Intf( 'eth2', node=s3 )
+	_intf = Intf( 'eth3', node=s1 )
+	_intf = Intf( 'eth4', node=s2 )
+	_intf = Intf( 'eth5', node=s3 )
 
 	call(['ovs-vsctl','add-port','s1','eth0'])
-	call(['ovs-vsctl','add-port','s4','eth1'])
-	call(['ovs-vsctl','add-port','s2','eth2'])
-	call(['ovs-vsctl','add-port','s3','eth3'])
-	call(['ovs-vsctl','add-port','s4','eth4'])
+	call(['ovs-vsctl','add-port','s2','eth1'])
+	call(['ovs-vsctl','add-port','s3','eth2'])
+	call(['ovs-vsctl','add-port','s1','eth3'])
+	call(['ovs-vsctl','add-port','s2','eth4'])
+	call(['ovs-vsctl','add-port','s3','eth5'])
 	CLI(net)
 	net.stop()
 

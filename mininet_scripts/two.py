@@ -29,7 +29,6 @@ def myNetwork():
 
 	s1 = net.addSwitch('s1', cls=OVSKernelSwitch, protocols='OpenFlow13')
 	s2 = net.addSwitch('s2', cls=OVSKernelSwitch, protocols='OpenFlow13')
-#	net.addLink( s1, s2 )
 	info( '*** Add links\n' )
 
 	info( '*** Starting network\n')
@@ -48,13 +47,13 @@ def myNetwork():
 	
 	_intf = Intf( 'eth0', node=s1 )
 	_intf = Intf( 'eth1', node=s2 )
-	_intf = Intf( 'eth2', node=s1 )
-	_intf = Intf( 'eth3', node=s2 )
+	_intf = Intf( 'eth3', node=s1 )
+	_intf = Intf( 'eth4', node=s2 )
 
 	call(['ovs-vsctl','add-port','s1','eth0'])
 	call(['ovs-vsctl','add-port','s2','eth1'])
-	call(['ovs-vsctl','add-port','s1','eth2'])
-	call(['ovs-vsctl','add-port','s2','eth3'])
+	call(['ovs-vsctl','add-port','s1','eth3'])
+	call(['ovs-vsctl','add-port','s2','eth4'])
 	CLI(net)
 	net.stop()
 

@@ -63,6 +63,21 @@ class L2switch(app_manager.RyuApp):
 			conn.close()
 
 
+	def initialNetSetup(self):
+		mac1 = '08:00:27:5f:ab:7f'
+		mac2 = '08:00:27:95:f8:bc'
+		mac3 = '08:00:27:77:27:8c'
+		mac4 = '08:00:27:72:ae:ed'
+
+		self.net.add_edge(1,mac1,port=5)
+		self.net.add_edge(1,mac2,port=6)
+		self.net.add_edge(6,mac3,port=5)
+		self.net.add_edge(6,mac4,port=6)
+		self.net.add_edge(mac1,1)
+		self.net.add_edge(mac2,1)
+		self.net.add_edge(mac3,6)
+		self.net.add_edge(mac4,6)
+
 	def __init__(self, *args, **kwargs):
 		"""
 		Initialise everything and truncate MySQL tables
@@ -80,6 +95,8 @@ class L2switch(app_manager.RyuApp):
 		self.executeInsert("DELETE FROM mptcp.subflow;")
 		self.connpaths = {}
 
+		self.initialNetSetup()
+	
 	@set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
 	def switch_features_handler(self, ev):
 		"""
@@ -161,7 +178,6 @@ class L2switch(app_manager.RyuApp):
 		if ht:
 			print 'zdrojovy port: ',ht.src_port
 			print 'destination port: ',ht.dst_port
-			mam = 1
 			options = ht.option
 			# Parse TCP options
 			if options and len(options) > 0:
@@ -173,14 +189,10 @@ class L2switch(app_manager.RyuApp):
 						subtype = hexopt[:2]
 						# MP CAPABLE
 						if subtype == "00":
+							found_path=1
 							# MP CAPABLE SYN      
 							if ht.bits == 2:
 								self.logger.info("MP_CAPABLE SYN")
-								dpid = datapath.id
-								if src not in self.net:
-									self.net.add_node(src)
-									self.net.add_edge(dpid,src,port=in_port)
-									self.net.add_edge(src,dpid)
 								
 								# Send A->B traffic to controller
 								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
@@ -193,7 +205,32 @@ class L2switch(app_manager.RyuApp):
 								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
 											  ofproto.OFPCML_NO_BUFFER)]
 								self.add_flow(datapath, 3, match, actions)
+								
+								# Najdi vsetky cesty zo src do dst
+								dpid = datapath.id
+								paths = list(nx.all_shortest_paths(self.net,src,dst))
+								self.logger.info("Nasiel som cesty pre MP_CAPABLE SYN z %s do %s.",src,dst)
+							
+								# Random index in list of paths
+								path_index = randrange(0,len(paths))
+								self.logger.info("Z tych ciest vyberam jednu. Je ich %d, vyberam tu s cislom %d.",len(paths),path_index)
+								
+								# Select random path 
+								path = paths[path_index]
+								self.logger.info("Zvolena cesta: ")
+								print(path)
 
+								# Zostroj index z MAC adries
+								macs = src+'-'+dst
+								self.connpaths[macs] = path_index
+								self.logger.info("Vytvaram kluc do connpaths: %s. Pridelujem path_index %d. Obsah connpaths: ",macs, path_index)
+								print(self.connpaths)
+								next = path[path.index(dpid)+1]
+								
+								out_port = self.net[dpid][next]['port']
+								print ("Out_port: %d", out_port)
+								actions = [parser.OFPActionOutput(out_port)]
+								self.add_flow(datapath, 3, match, actions)
 								# Sender's key.
 								keya = hexopt[4:]
 
@@ -209,31 +246,22 @@ class L2switch(app_manager.RyuApp):
 								self.logger.info("MP_CAPABLE SYN-ACK")
 								
 								dpid=datapath.id
-								if src not in self.net:
-									self.net.add_node(src)
-									self.net.add_edge(dpid,src,port=in_port)
-									self.net.add_edge(src,dpid)
 
 								# Change out_port so traffic does not go to controller anymore
 								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
-								# All shortest paths between srcmac and dst mac							
-								paths = list(nx.all_shortest_paths(self.net,src,dst))
-								print("Found path for SYN-ACK. %s to %s Its:", src, dst)
-							
-								# Random index in list of paths
-								path_index = randrange(0,len(paths))
-								print ("Volim random index z 0 az do %d. Zvolil som: %d'",len(paths),path_index)
-								# Select random path 
-								path = paths[path_index]
-								print(path)
 								
 								macs = dst+'-'+src
-								self.connpaths[macs] = path_index
-								print ("Zlozil som kluc do connpaths: %s. Pridelil som path_index %d. Obsah conppaths:",macs,path_index)
-								print(self.connpaths)
+								# All shortest paths between srcmac and dst mac							
+								paths = list(nx.all_shortest_paths(self.net,src,dst))
+								path = paths[self.connpaths[macs]]
+						
+								self.logger.info("Nasiel som cestu pre CAPABLE SYN-ACK z %s do %s. Cesta je: ",src,dst)
+								print(path)
+
 								next = path[path.index(dpid)+1]
 								
 								out_port = self.net[dpid][next]['port']
+								
 								print ("Out_port: %d", out_port)
 								actions = [parser.OFPActionOutput(out_port)]
 								self.add_flow(datapath, 3, match, actions)
@@ -259,14 +287,13 @@ class L2switch(app_manager.RyuApp):
 						
 								# Construct key in connpaths	
 								macs = src+'-'+dst
-								print ('Som v ACK. macs: %s',macs)
+								self.logger.info("Som v MP_CAPABLE ACK. Macs: %s",macs)
 
 								# Get all shortest paths
 								paths = list(nx.all_shortest_paths(self.net,src,dst))
 								path = paths[self.connpaths[macs]]
 
-								print('Random index v ACK: ',self.connpaths[macs])
-								print("Found path for ACK. %s to %s Its:", src, dst)
+								self.logger.info('Random index v ACK: %d, cesta: ',self.connpaths[macs])
 								print(path)	
 								next = path[path.index(dpid)+1]
 								
@@ -281,15 +308,10 @@ class L2switch(app_manager.RyuApp):
 
 						# MP_JOIN
 						elif subtype == "10" or subtype == "11":
-
+							found_path=1
 							# MP_JOIN SYN 
 							if ht.bits == 2:
 								self.logger.info("MP_JOIN SYN")
-								dpid = datapath.id
-								if src not in self.net:
-									self.net.add_node(src)
-									self.net.add_edge(dpid,src,port=in_port)
-									self.net.add_edge(src,dpid)
 
 								# Send A->B traffic to controller
 								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
@@ -302,6 +324,35 @@ class L2switch(app_manager.RyuApp):
 								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
 											  ofproto.OFPCML_NO_BUFFER)]
 								self.add_flow(datapath, 3, match, actions)
+
+
+								# Najdi vsetky cesty zo src do dst
+								dpid = datapath.id
+								paths = list(nx.all_shortest_paths(self.net,src,dst))
+								self.logger.info("Nasiel som cesty pre MP_JOIN SYN z %s do %s.",src,dst)
+							
+								# Random index in list of paths
+								path_index = randrange(0,len(paths))
+								self.logger.info("Z tych ciest vyberam jednu. Je ich %d, vyberam tu s cislom %d.",len(paths),path_index)
+								
+								# Select random path 
+								path = paths[path_index]
+								self.logger.info("Zvolena cesta: ")
+								print(path)
+
+								# Zostroj index z MAC adries
+								macs = src+'-'+dst
+								self.connpaths[macs] = path_index
+								self.logger.info("Vytvaram kluc do connpaths: %s. Pridelujem path_index %d. Obsah connpaths: ",macs, path_index)
+								print(self.connpaths)
+								next = path[path.index(dpid)+1]
+								
+								out_port = self.net[dpid][next]['port']
+
+
+
+
+
 
 								# Receiver's token. From the MPTCP connection. 
 								tokenb = int(hexopt[4:][:8],16)
@@ -322,31 +373,22 @@ class L2switch(app_manager.RyuApp):
 								dpid=datapath.id
 								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
 								
-								if src not in self.net:
-									self.net.add_node(src)
-									self.net.add_edge(dpid,src,port=in_port)
-									self.net.add_edge(src,dpid)
-								
-								paths = list(nx.all_shortest_paths(self.net,src,dst))
-								print("Found path for SYN-ACK. %s to %s Its:", src, dst)
-								# Random index in list of paths
-								path_index = randrange(0,len(paths))
-								print ("JOIN volim random index z 0 az do %d. Zvolil som: %d'",len(paths),path_index)
-								# Select random path 
-								path = paths[path_index]
-								print(path)
-								
 								macs = dst+'-'+src
-								self.connpaths[macs] = path_index
-								print ("Zlozil som kluc do connpaths: %s. Pridelil som path_index %d. Obsah conppaths:",macs,path_index)
-								print(self.connpaths)
+								# All shortest paths between srcmac and dst mac							
+								paths = list(nx.all_shortest_paths(self.net,src,dst))
+								path = paths[self.connpaths[macs]]
+						
+								self.logger.info("Nasiel som cestu pre JOIN SYN-ACK z %s do %s. Cesta je: ",src,dst)
+								print(path)
+
 								next = path[path.index(dpid)+1]
 								
 								out_port = self.net[dpid][next]['port']
+								
 								print ("Out_port: %d", out_port)
 								actions = [parser.OFPActionOutput(out_port)]
 								self.add_flow(datapath, 3, match, actions)
-								
+
 								# Receiver's truncated HASH. 
 								trunhash = int(hexopt[4:][:16],16)
 
@@ -365,16 +407,15 @@ class L2switch(app_manager.RyuApp):
 								# Change out_port so traffic does not go to controller anymore
 								dpid = datapath.id
 								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
-
-								# Construct key in connpaths								
+								# Construct key in connpaths	
 								macs = src+'-'+dst
-								print ('Som v  JOIN ACK. macs: %s',macs)
+								self.logger.info("Som v MP_CAPABLE ACK. Macs: %s",macs)
 
-								# Get all paths 
+								# Get all shortest paths
 								paths = list(nx.all_shortest_paths(self.net,src,dst))
 								path = paths[self.connpaths[macs]]
-								print('Random index v ACK: ',self.connpaths[macs])
-								print("Found path for ACK. %s to %s Its:", src, dst)
+
+								self.logger.info('Random index v ACK: %d, cesta: ',self.connpaths[macs])
 								print(path)	
 								next = path[path.index(dpid)+1]
 								
@@ -431,50 +472,53 @@ class L2switch(app_manager.RyuApp):
 									print ('srcmac = %s',srcmac)
 									print ('dstmac = %s',dstmac)
 
-								#	paths = list(nx.all_shortest_paths(self.net,srcmac,dstmac))
-								#	print ("Available paths: ")
-								#	for p in paths:
-								#		print p
+							#		paths = list(nx.all_shortest_paths(self.net,srcmac,dstmac))
+							#		print ("Available paths: ")
+							#		for p in paths:
+							#			print p
 
-								#	print ("Random_path: ")
-								#	random_path = random.choice(paths)
-								#	print (random_path)
-								#	found_path = 1
-								#	print ("Found_path: %d",found_path)
+							#		print ("Random_path: ")
+							#		random_path = random.choice(paths)
+							#		print (random_path)
+							#		found_path = 1
+							#		print ("Found_path: %d",found_path)
 
 			# Learn MAC addresses to avoid FLOOD.
 		dpid = datapath.id
-		self.mac_to_port.setdefault(dpid, {})
-		self.mac_to_port[dpid][src] = in_port
+	#	self.mac_to_port.setdefault(dpid, {})
+	#	self.mac_to_port[dpid][src] = in_port
 
 		# Shortest path forwarding
-#		for f in msg.match.fields:
-#			if f.header == ofproto_v1_3.OXM_OF_IN_PORT:
-#				in_port = f.value
-#
-#		if src not in self.net:
-#			self.net.add_node(src)
-#			self.net.add_edge(dpid,src,port=in_port)
-#			self.net.add_edge(src,dpid)
-#		if dst in self.net:
-#			print("Som v rozhodovani.")
-#			if found_path == 1:
-#				print ("Assingin random path.")
-#				path = random_path
-#				next = path[path.index(dpid) + 1]
-#				out_port = self.net[dpid][next]['port']
-#			else:
-#				print ("Assining not random path.")
-#				path = nx.shortest_path(self.net,src,dst)
-#				next = path[path.index(dpid) + 1]
-#				out_port = self.net[dpid][next]['port']
-#		else:
-#			out_port = ofproto.OFPP_FLOOD
+		for f in msg.match.fields:
+			if f.header == ofproto_v1_3.OXM_OF_IN_PORT:
+				in_port = f.value
 
-		if dst in self.mac_to_port[dpid]:
-			out_port = self.mac_to_port[dpid][dst]
+	#	if src not in self.net:
+	#		self.net.add_node(src)
+	#		self.net.add_edge(dpid,src,port=in_port)
+	#		self.net.add_edge(src,dpid)
+		if dst in self.net:
+			print("Som v rozhodovani.")
+			if found_path == 1:
+				print ("Mam cestu")
+			#	print ("Assingin random path.")
+			#	path = random_path
+			#	next = path[path.index(dpid) + 1]
+			#	out_port = self.net[dpid][next]['port']
+			else:
+				print ("Assining not random path.")
+				path = nx.shortest_path(self.net,src,dst)
+				next = path[path.index(dpid) + 1]
+				print (path)
+				out_port = self.net[dpid][next]['port']
+				print ("out: %d",out_port)
 		else:
 			out_port = ofproto.OFPP_FLOOD
+
+#		if dst in self.mac_to_port[dpid]:
+#			out_port = self.mac_to_port[dpid][dst]
+#		else:
+#			out_port = ofproto.OFPP_FLOOD
 
 		actions = [parser.OFPActionOutput(out_port)]
 
@@ -494,28 +538,27 @@ class L2switch(app_manager.RyuApp):
 								  in_port=in_port, actions=actions, data=data)
 		datapath.send_msg(out)
 
-		
-		"""
-		Get topology data. Links and switches.
-		"""
-		switch_list = get_switch(self.topology_api_app, None)
-		switches=[switch.dp.id for switch in switch_list]
-		self.net.add_nodes_from(switches)
-
-		links_list = get_link(self.topology_api_app, None)
-		links = [(link.src.dpid,link.dst.dpid,{'port':link.src.port_no}) for link in links_list]
-		print("Linky: ",links)
-		self.net.add_edges_from(links)
-		links=[(link.dst.dpid,link.src.dpid,{'port':link.dst.port_no}) for link in links_list]
-		print("Linky znova: ",links)
-		self.net.add_edges_from(links)
-		print("Linky z programu: ",self.net.edges())
-		print("Nodes z programu: ",self.net.nodes())
+#		"""
+#		Get topology data. Links and switches.
+#		"""
+#		switch_list = get_switch(self.topology_api_app, None)
+#		switches=[switch.dp.id for switch in switch_list]
+#		self.net.add_nodes_from(switches)
+#
+#		links_list = get_link(self.topology_api_app, None)
+#		links = [(link.src.dpid,link.dst.dpid,{'port':link.src.port_no}) for link in links_list]
+#		print("Linky: ",links)
+#		self.net.add_edges_from(links)
+#		links=[(link.dst.dpid,link.src.dpid,{'port':link.dst.port_no}) for link in links_list]
+#		print("Linky znova: ",links)
+#		self.net.add_edges_from(links)
+#		print("Linky z programu: ",self.net.edges())
+#		print("Nodes z programu: ",self.net.nodes())
 	@set_ev_cls(event.EventSwitchEnter)
 	def get_topology_data(self, ev):
-		"""
-		Get topology data. Links and switches.
-		"""
+#		"""
+#		Get topology data. Links and switches.
+#		"""
 		switch_list = get_switch(self.topology_api_app, None)
 		switches=[switch.dp.id for switch in switch_list]
 		self.net.add_nodes_from(switches)
