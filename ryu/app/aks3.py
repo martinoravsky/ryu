@@ -18,6 +18,7 @@ import random
 from collections import defaultdict
 from random import randrange
 from ryu.app.ofctl.api import get_datapath
+import sys
 
 
 class L2switch(app_manager.RyuApp):
@@ -202,9 +203,8 @@ class L2switch(app_manager.RyuApp):
 			print 'dest ip: ',t.dst
 
 		ht = pkt.get_protocol(tcp.tcp)
-		mam = 0
 		found_path=0
-		random_path = ()
+		
 		# If TCP
 		if ht:
 			print 'zdrojovy port: ',ht.src_port
@@ -354,7 +354,7 @@ class L2switch(app_manager.RyuApp):
 								found_path = 1
 								dpid = datapath.id
 								paths = list(nx.all_shortest_paths(self.net,src,dst))
-    #							macs = src+'-'+dst
+	#							macs = src+'-'+dst
 								path = random.choice(paths)
 	#							if macs in self.connpaths: #Ak uz mam zvolenu cestu
 	#								self.logger.info("Pre takyto srcdst uz mam zvolenu cestu. Pouzijem tuto cestu:")
