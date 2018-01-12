@@ -32,7 +32,7 @@ class L2switch(app_manager.RyuApp):
 			conn = mysql.connector.connect(host='localhost',
 											database='mptcp',
 											user='debian-sys-maint',
-											password='QkrL9GepDeTtoTsM')
+											password='p74Kwwac0EKHXql5')
 			if conn.is_connected():
 				print('Connected do MySQL. Query: %s',query)
 				cursor = conn.cursor()
@@ -52,7 +52,7 @@ class L2switch(app_manager.RyuApp):
 			conn = mysql.connector.connect(host='localhost',
 											database='mptcp',
 											user='debian-sys-maint',
-											password='QkrL9GepDeTtoTsM')
+											password='p74Kwwac0EKHXql5')
 			if conn.is_connected():
 				print('Connected do MySQL. Query: %s',query)
 				cursor = conn.cursor()

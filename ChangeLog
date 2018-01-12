@@ -1,6 +1,40 @@
 CHANGES
 =======
 
+* Sequence
+* Changed spf
+* final
+* Ach
+* Changed path handling
+* Changed MPTCP connection handling in dp.py
+* Cesty
+* dp.py - Working MPTCP handling using MYSQL
+* Mysql finished
+* Added MPTCP connections adding to MYSQL
+* Added SPF
+* Back to openflow 1.3
+* Dalsie
+* Pridanie connection initiation handling
+* Pridane manualne handlovanie syn a synack
+* Neviem
+* Upravene riesenie iniciacie spojenia
+* poznamky
+* detekcia paketov
+* neviem uz
+* pomoc
+* drobne zmeny v mptcp
+* new
+* new
+* new
+* new
+* new
+* Added notes
+* Added MPTCP support to SPF
+* Added hash.py - Computation of hashes
+* Changed number of switches
+* Edited topology in eight\_switches.py
+* Small test edit
+* PyCharm files
 * PyCharm files
 * Added shortest\_path\_forwarding\_13.py
 * Modified mininet\_scripts/one\_switch.py

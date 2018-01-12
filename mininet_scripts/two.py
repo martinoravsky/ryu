@@ -14,8 +14,8 @@ from subprocess import call
 def myNetwork():
 
 	net = Mininet( topo=None,
-				   build=False,
-				   ipBase='10.0.0.0/8')
+				   build=False
+				   )
 
 	info( '*** Adding controller\n' )
 	c0=net.addController(name='c0',
@@ -47,13 +47,13 @@ def myNetwork():
 	
 	_intf = Intf( 'eth0', node=s1 )
 	_intf = Intf( 'eth1', node=s2 )
-	_intf = Intf( 'eth3', node=s1 )
-	_intf = Intf( 'eth4', node=s2 )
+	_intf = Intf( 'eth2', node=s1 )
+	_intf = Intf( 'eth3', node=s2 )
 
 	call(['ovs-vsctl','add-port','s1','eth0'])
 	call(['ovs-vsctl','add-port','s2','eth1'])
-	call(['ovs-vsctl','add-port','s1','eth3'])
-	call(['ovs-vsctl','add-port','s2','eth4'])
+	call(['ovs-vsctl','add-port','s1','eth2'])
+	call(['ovs-vsctl','add-port','s2','eth3'])
 	CLI(net)
 	net.stop()
 
