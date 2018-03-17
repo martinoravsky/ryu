@@ -14,6 +14,7 @@ from ryu.topology import event, switches
 import networkx as nx
 import binascii, hashlib, hmac, os, mysql.connector
 from mysql.connector import Error
+from connection import connect
 
 
 class L2switch(app_manager.RyuApp):
@@ -24,10 +25,7 @@ class L2switch(app_manager.RyuApp):
 		Connect to MySQL database and execute INSERT
 		"""
 		try:
-			conn = mysql.connector.connect(host='localhost',
-											database='mptcp',
-											user='debian-sys-maint',
-											password='QkrL9GepDeTtoTsM')
+			conn = connect()
 			if conn.is_connected():
 				print('Connected do MySQL. Query: %s',query)
 				cursor = conn.cursor()
@@ -44,10 +42,7 @@ class L2switch(app_manager.RyuApp):
 		Connect to MySQL Database and execute SELECT
 		"""
 		try:
-			conn = mysql.connector.connect(host='localhost',
-											database='mptcp',
-											user='debian-sys-maint',
-											password='QkrL9GepDeTtoTsM')
+			conn = connect()
 			if conn.is_connected():
 				print('Connected do MySQL. Query: %s',query)
 				cursor = conn.cursor()
@@ -91,6 +86,12 @@ class L2switch(app_manager.RyuApp):
 		actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
 										  ofproto.OFPCML_NO_BUFFER)]
 		self.add_flow(datapath, 0, match, actions)
+
+		# Install flow for all TCP traffic
+		match = parser.OFPMatch(eth_type=0x0800,ip_proto=6)
+		actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+										  ofproto.OFPCML_NO_BUFFER)]
+		self.add_flow(datapath, 2, match, actions)
 
 	def add_flow(self, datapath, priority, match, actions, buffer_id=None):
 		"""
@@ -146,12 +147,14 @@ class L2switch(app_manager.RyuApp):
 			print 'dest ip: ',t.dst
 
 		ht = pkt.get_protocol(tcp.tcp)
-
+		mam = 0
+		found_path=0
+		random_path = ()
 		# If TCP
 		if ht:
 			print 'zdrojovy port: ',ht.src_port
 			print 'destination port: ',ht.dst_port
-
+			mam = 1
 			options = ht.option
 			# Parse TCP options
 			if options and len(options) > 0:
@@ -167,11 +170,17 @@ class L2switch(app_manager.RyuApp):
 							if ht.bits == 2:
 								self.logger.info("MP_CAPABLE SYN")
 
-								# Add flow for SYN and SYN-ACK for opposite direction.
-								command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+dst+',tcp,tcp_flags=0x002,actions=CONTROLLER:65535"'
-								os.system(command)
-								command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+src+',tcp,tcp_flags=0x012,actions=CONTROLLER:65535"'
-								os.system(command)
+								# Send A->B traffic to controller
+								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
+								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+											  ofproto.OFPCML_NO_BUFFER)]
+								self.add_flow(datapath, 3, match, actions)
+
+								# Send B->A traffic to controller
+								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.dst,ipv4_dst=t.src,tcp_src=ht.dst_port,tcp_dst=ht.src_port)
+								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+											  ofproto.OFPCML_NO_BUFFER)]
+								self.add_flow(datapath, 3, match, actions)
 
 								# Sender's key.
 								keya = hexopt[4:]
@@ -186,10 +195,18 @@ class L2switch(app_manager.RyuApp):
 							# MP_CAPABLE SYN-ACK
 							elif ht.bits == 18:
 								self.logger.info("MP_CAPABLE SYN-ACK")
+								
+								# Change out_port so traffic does not go to controller anymore
+								dpid=datapath.id
+								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
+								
+								if dst in self.mac_to_port[dpid]:
+									out_port = self.mac_to_port[dpid][dst]
+								else:
+									out_port = ofproto.OFPP_FLOOD
 
-								# Add flow for ACK for the opposite direction. 
-								command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+src+',tcp,tcp_flags=0x010,actions=CONTROLLER:65535"'
-								os.system(command)
+								actions = [parser.OFPActionOutput(out_port)]
+								self.add_flow(datapath, 3, match, actions)
 
 								# Receiver's key.
 								keyb = hexopt[4:]
@@ -205,11 +222,19 @@ class L2switch(app_manager.RyuApp):
 							# MP_CAPABLE ACK
 							elif ht.bits == 16:
 								self.logger.info("MP_CAPABLE ACK")
+								
+								# Change out_port so traffic does not go to controller anymore
+								dpid = datapath.id
+								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
+								
+								if dst in self.mac_to_port[dpid]:
+									out_port = self.mac_to_port[dpid][dst]
+								else:
+									out_port = ofproto.OFPP_FLOOD
 
-								#paths = nx.all_shortest_paths(self.net,src,dst)
-								#for p in paths:
-							#		print ("Connpaths v mpack: ", p)
-								# Delete flow for ACK.
+								actions = [parser.OFPActionOutput(out_port)]
+								self.add_flow(datapath, 3, match, actions)
+
 								command = 'ovs-ofctl -OOpenFlow13 del-flows s1 "eth_dst='+dst+',tcp,tcp_flags=0x010"'
 								os.system(command)
 
@@ -219,12 +244,18 @@ class L2switch(app_manager.RyuApp):
 							# MP_JOIN SYN 
 							if ht.bits == 2:
 								self.logger.info("MP_JOIN SYN")
-								
-								# Add flow for SYN and for SYN-ACK for opposite direction. 
-								command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+dst+',tcp,tcp_flags=0x002,actions=CONTROLLER:65535"'
-								os.system(command)
-								command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+src+',tcp,tcp_flags=0x012,actions=CONTROLLER:65535"'
-								os.system(command)
+							
+								# Send A->B traffic to controller
+								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
+								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+											  ofproto.OFPCML_NO_BUFFER)]
+								self.add_flow(datapath, 3, match, actions)
+
+								# Send B->A traffic to controller
+								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.dst,ipv4_dst=t.src,tcp_src=ht.dst_port,tcp_dst=ht.src_port)
+								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+											  ofproto.OFPCML_NO_BUFFER)]
+								self.add_flow(datapath, 3, match, actions)
 
 								# Receiver's token. From the MPTCP connection. 
 								tokenb = int(hexopt[4:][:8],16)
@@ -240,10 +271,18 @@ class L2switch(app_manager.RyuApp):
 							# MP_JOIN SYN-ACK
 							elif ht.bits == 18:
 								self.logger.info("MP_JOIN SYN-ACK.")
+								
+								# Change out_port so traffic does not go to controller anymore
+								dpid=datapath.id
+								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
+								
+								if dst in self.mac_to_port[dpid]:
+									out_port = self.mac_to_port[dpid][dst]
+								else:
+									out_port = ofproto.OFPP_FLOOD
 
-								# Add flow for ACK for opposite direction.
-								command = 'ovs-ofctl -OOpenFlow13 add-flow s1 "table=0,priority=2,eth_dst='+src+',tcp,tcp_flags=0x010,actions=CONTROLLER:65535"'
-								os.system(command)
+								actions = [parser.OFPActionOutput(out_port)]
+								self.add_flow(datapath, 3, match, actions)
 
 								# Receiver's truncated HASH. 
 								trunhash = int(hexopt[4:][:16],16)
@@ -260,6 +299,18 @@ class L2switch(app_manager.RyuApp):
 							elif ht.bits == 16:
 								self.logger.info("MP_JOIN ACK.")
 
+								# Change out_port so traffic does not go to controller anymore
+								dpid = datapath.id
+								match = parser.OFPMatch(eth_type=0x0800,ip_proto=6,ipv4_src=t.src,ipv4_dst=t.dst,tcp_src=ht.src_port,tcp_dst=ht.dst_port)
+								
+								if dst in self.mac_to_port[dpid]:
+									out_port = self.mac_to_port[dpid][dst]
+								else:
+									out_port = ofproto.OFPP_FLOOD
+
+								actions = [parser.OFPActionOutput(out_port)]
+								self.add_flow(datapath, 3, match, actions)
+
 								# Sender's HASH.
 								hmachash = hexopt[4:]
 
@@ -268,10 +319,6 @@ class L2switch(app_manager.RyuApp):
 								query = "UPDATE mptcp.subflow SET hash='{hmachash}' WHERE ip_src='{tsrc}' AND ip_dst='{tdst}' AND tcp_src={htsrc_port} AND tcp_dst={htdst_port};"
 								self.executeInsert(query.format(**values))
 
-								# Delete flow for ACK. 
-#									command = 'ovs-ofctl -OOpenFlow13 del-flows s1 "eth_dst='+dst+',tcp,tcp_flags=0x010"'
-#									os.system(command)
-#
 								# Select keys from appropriate connection based on receiver's token. 
 								values = {'tsrc':t.src,'tdst':t.dst,'htsrc_port':ht.src_port,'htdst_port':ht.dst_port}
 								query = "SELECT keya,keyb from conn where tokenb in (SELECT tokenb from subflow where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port});"
@@ -283,11 +330,11 @@ class L2switch(app_manager.RyuApp):
 								nonces = self.executeSelect(query.format(**values))
 
 								# Key for generating HMAC is a concatenation of two keys. Message is a concatenation of two nonces. 
-								key = binascii.unhexlify(keys[0]+keys[1])
+								keyhmac = binascii.unhexlify(keys[0]+keys[1])
 								message = binascii.unhexlify(nonces[0]+nonces[1])
 
 								# Generate hash.
-								vysledok = hmac.new(key,message, hashlib.sha1).hexdigest()
+								vysledok = hmac.new(keyhmac,message, hashlib.sha1).hexdigest()
 								print(vysledok)
 
 								# Compare generated HASH to the one from MP_JOIN ACK.
@@ -303,8 +350,24 @@ class L2switch(app_manager.RyuApp):
 									query = "update subflow set connid = {id} where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port};"
 									self.executeInsert(query.format(**values))
 
-									# select src,dst from subflow join conn on subflow.connid=conn.id;
-									# podla tohto zistim src, dst a viem najst cesty pre ten connection. potom uz len jednu vyberiem a ulozim do path. a pouzijem nejaku pomocnu premennu aby som dalej vedel ze som vybral nejaku cestu.
+									query = "select src,dst from conn join subflow on subflow.connid=conn.id where conn.id=(select connid from subflow where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port}) group by src;"
+
+									result = self.executeSelect(query.format(**values))
+									srcmac = result[0]
+									dstmac = result[1]
+									print ('srcmac = %s',srcmac)
+									print ('dstmac = %s',dstmac)
+
+								#	paths = list(nx.all_shortest_paths(self.net,srcmac,dstmac))
+								#	print ("Available paths: ")
+								#	for p in paths:
+								#		print p
+
+								#	print ("Random_path: ")
+								#	random_path = random.choice(paths)
+								#	print (random_path)
+								#	found_path = 1
+								#	print ("Found_path: %d",found_path)
 
 			# Learn MAC addresses to avoid FLOOD.
 		dpid = datapath.id
@@ -312,27 +375,34 @@ class L2switch(app_manager.RyuApp):
 		self.mac_to_port[dpid][src] = in_port
 
 		# Shortest path forwarding
-		for f in msg.match.fields:
-			if f.header == ofproto_v1_3.OXM_OF_IN_PORT:
-				in_port = f.value
+#		for f in msg.match.fields:
+#			if f.header == ofproto_v1_3.OXM_OF_IN_PORT:
+#				in_port = f.value
+#
+#		if src not in self.net:
+#			self.net.add_node(src)
+#			self.net.add_edge(dpid,src,port=in_port)
+#			self.net.add_edge(src,dpid)
+#		if dst in self.net:
+#			print("Som v rozhodovani.")
+#			if found_path == 1:
+#				print ("Assingin random path.")
+#				path = random_path
+#				next = path[path.index(dpid) + 1]
+#				out_port = self.net[dpid][next]['port']
+#			else:
+#				print ("Assining not random path.")
+#				path = nx.shortest_path(self.net,src,dst)
+#				next = path[path.index(dpid) + 1]
+#				out_port = self.net[dpid][next]['port']
+#		else:
+#			out_port = ofproto.OFPP_FLOOD
 
-		if src not in self.net:
-			self.net.add_node(src)
-			self.net.add_edge(dpid,src,port=in_port)
-			self.net.add_edge(src,dpid)
-		if dst in self.net:
-			self.logger.info(nx.shortest_path(self.net,src,dst))
-			path = nx.shortest_path(self.net,src,dst)
-			next = path[path.index(dpid) + 1]
-			out_port = self.net[dpid][next]['port']
+		if dst in self.mac_to_port[dpid]:
+			out_port = self.mac_to_port[dpid][dst]
 		else:
 			out_port = ofproto.OFPP_FLOOD
 
-#		if dst in self.mac_to_port[dpid]:
-#			out_port = self.mac_to_port[dpid][dst]
-#		else:
-#			out_port = ofproto.OFPP_FLOOD
-#
 		actions = [parser.OFPActionOutput(out_port)]
 
 		# Install flow to avoid FLOOD next time. 
@@ -351,7 +421,23 @@ class L2switch(app_manager.RyuApp):
 								  in_port=in_port, actions=actions, data=data)
 		datapath.send_msg(out)
 
+		
+		"""
+		Get topology data. Links and switches.
+		"""
+		switch_list = get_switch(self.topology_api_app, None)
+		switches=[switch.dp.id for switch in switch_list]
+		self.net.add_nodes_from(switches)
 
+		links_list = get_link(self.topology_api_app, None)
+		links = [(link.src.dpid,link.dst.dpid,{'port':link.src.port_no}) for link in links_list]
+		print("Linky: ",links)
+		self.net.add_edges_from(links)
+		links=[(link.dst.dpid,link.src.dpid,{'port':link.dst.port_no}) for link in links_list]
+		print("Linky znova: ",links)
+		self.net.add_edges_from(links)
+		print("Linky z programu: ",self.net.edges())
+		print("Nodes z programu: ",self.net.nodes())
 	@set_ev_cls(event.EventSwitchEnter)
 	def get_topology_data(self, ev):
 		"""
