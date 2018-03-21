@@ -40,8 +40,6 @@ class SimpleSwitch13(app_manager.RyuApp):
 		self.net = nx.DiGraph()
 		self.nodes = {}
 		self.links = {}
-		self.novy = nx.DiGraph()
-		self.ARPnet = nx.DiGraph()
 		self.table = {}
 
 	@set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
@@ -112,71 +110,18 @@ class SimpleSwitch13(app_manager.RyuApp):
 			self.net.add_node(src)
 			self.net.add_edge(dpid,src,port = msg.match['in_port'])
 			self.net.add_edge(src,dpid)
-			print ("nepoznam v sieti..: ",src)
-			print ("pridavam do siete nasledovne nody:", src)
-			print ("pridavam do siete nasledovne linky:")
-			print(dpid, src, in_port)
-			print(src,dpid)
 
 		if dst in self.net:
-			print ("takuto DST maaam")
-			print ("takuto cestu som vymyslel zo %s do %s ", src,dst)
 			path = nx.shortest_path(self.net,src,dst)
-			# TODO
+
 			if dpid not in path:
 				return
 
-			for p in path:
-				print (p)
-			print("aktualne potrebujem vediet na ktorom mieste v ceste sa nachadza moj switch")
-
-			print("aktualny switch sa nachadza v ceste na %d mieste",path.index(dpid))
-			print("potrebujem vediet co nasleduje za aktualnym switchom..",path[path.index(dpid)+1])
-
-			following=path[path.index(dpid)+1]
-			print("next je takyto: ", following)
-			print("potrebujem vediet ktorym portom to mam poslat von:")
-			print("je to tento port: ",self.net[dpid][following]['port'])
 			out_port = self.net[dpid][path[path.index(dpid)+1]]['port']
 
-			#print ("Som na switchi ",dpid,", dst je ",dst,", src je ",src," , out_port je ", out_port)
-			# fullpath = path
-			# tmppath = path[1:-1]
-			# for s in tmppath:
-			# 	print ("Riesim switch c. ",s)
-			# 	print ("Eth_dst je:",dst)
-			#
-			# 	match = parser.OFPMatch(eth_dst=dst)
-			# 	following = fullpath[fullpath.index(s) + 1]
-			# 	print ("Nasledujuci switch je: ",following)
-			#
-			# 	out_port = self.net[s][following]['port']
-			# 	print ("out_port z %d do %d je: ",s,following, out_port)
-			# 	actions = [parser.OFPActionOutput(out_port)]
-			# 	self.logger.info("Instalujem out_port %d pravidlo do switchu %d", out_port, s)
-			# 	self.add_flow(get_datapath(self, s), 3, match, actions)
-			#
-			#
-			# 	prev = fullpath[fullpath.index(s) - 1]
-			# 	print ("Predosly switch je: ", prev)
-			#
-			# 	out_port = self.net[s][prev]['port']
-			# 	print ("Out port z %d do %d je: ",s,prev,out_port)
-			# 	match = parser.OFPMatch(eth_dst=src)
-			# 	actions = [parser.OFPActionOutput(out_port)]
-			# 	self.logger.info("Instalujem out_port %d pravidlo do switchu %d", out_port, s)
-			# 	self.add_flow(get_datapath(self, s), 3, match, actions)
 		else:
 			print ("takuto DST nemam, musim floodovat")
 			out_port = ofproto.OFPP_FLOOD
-
-		# # learn a mac address to avoid FLOOD next time.
-		# self.mac_to_port[dpid][src] = in_port
-		#
-		# if dst in self.mac_to_port[dpid]:
-		# 	out_port = self.mac_to_port[dpid][dst]
-		# else:
-		# 	out_port = ofproto.OFPP_FLOOD
 
 		actions = [parser.OFPActionOutput(out_port)]
 		#
@@ -200,19 +145,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 		print(self.net.edges.data())
 
 
-	def remove_loops(self):
-		print("********Rekalkulujem.")
-		T = nx.minimum_spanning_tree(self.net.to_undirected())
-
-		self.novy.add_edges_from(
-			[(i, o, w) for i, o, w in self.net.edges(data=True) if ((i, o) in T.edges() or (o, i) in T.edges())])
-
-		self.ARPnet = self.novy.copy()
-
-		print("********Zmenseny graf: ")
-		print self.net.edges.data()
 	@set_ev_cls(event.EventSwitchEnter)
-
 	def get_topology_data(self,ev):
 		switch_list = get_switch(self.topology_api_app, None)
 		switches = [switch.dp.id for switch in switch_list]
@@ -231,5 +164,5 @@ class SimpleSwitch13(app_manager.RyuApp):
 		print ("******** List of links")
 		print(self.net.edges())
 
-		self.remove_loops()
+		#self.remove_loops()
 
