@@ -42,6 +42,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 		self.links = {}
 		self.novy = nx.DiGraph()
 		self.ARPnet = nx.DiGraph()
+		self.table = {}
 
 	@set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
 	def switch_features_handler(self, ev):
@@ -87,20 +88,20 @@ class SimpleSwitch13(app_manager.RyuApp):
 		dpid = datapath.id
 		self.mac_to_port.setdefault(dpid, {})
 
+		arp_pkt = pkt.get_protocol(arp.arp)
 
-		arp_packet = pkt.get_protocol(arp.arp)
+		if dst == mac.BROADCAST_STR:
+			arp_dst_ip = arp_pkt.dst_ip
+			arp_src_ip = arp_pkt.src_ip
 
-		if arp_packet and dst == mac.BROADCAST_STR:
-			print ('***** ARP REQUEST *****')
-			for linka in self.net.edges.data():
-				print ('*** Spracujem linku: ',linka)
-				match = parser.OFPMatch(eth_type=0x0806, eth_dst=mac.BROADCAST_STR)
-				print ('*** Robim match na zaklade eth_dst: ', dst)
-				out_port = linka[2]['port']
-				print ('*** Posli von tymto portom: ', out_port)
-				actions = [parser.OFPActionOutput(out_port)]
-				self.add_flow(get_datapath(self,linka[0]),2,match,actions)
-			return
+			if(dpid, arp_src_ip, arp_dst_ip) in self.table:
+				if self.table[(dpid,arp_src_ip,arp_dst_ip)] != in_port:
+					datapath.send_packet_out(in_port=in_port, actions=[])
+					return True
+			else:
+				self.table[(dpid,arp_src_ip,arp_dst_ip)] = in_port
+				print self.table
+				self.mac_to_port[datapath.id][src] = in_port
 
 		if eth.ethertype == ether_types.ETH_TYPE_LLDP:
 			return
