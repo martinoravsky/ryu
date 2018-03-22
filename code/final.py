@@ -51,6 +51,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 		self.links = {}
 		self.table = {}
 
+
 	def executeInsert(self, query):
 		"""
 		Connect to MySQL database and execute INSERT
@@ -100,6 +101,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 		inst = [parser.OFPInstructionActions(ofproto.OFPIT_APPLY_ACTIONS,
 											 actions)]
+
 		if buffer_id:
 			mod = parser.OFPFlowMod(datapath=datapath, buffer_id=buffer_id,
 									priority=priority, match=match,
@@ -108,6 +110,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 			mod = parser.OFPFlowMod(datapath=datapath, priority=priority,
 									match=match, instructions=inst)
 		datapath.send_msg(mod)
+
+
 
 	@set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
 	def _packet_in_handler(self, ev):
@@ -160,7 +164,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 			print 'dest ip: ', t.dst
 
 		ht = pkt.get_protocol(tcp.tcp)
-		found_path = 0
+
+
 
 		# If TCP
 		if ht:
@@ -206,6 +211,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 										  'htsrc_port': ht.src_port, 'htdst_port': ht.dst_port, 'src': src, 'dst': dst}
 								query = "replace INTO mptcp.conn (ip_src,ip_dst,keya,tokena,tcp_src,tcp_dst,src,dst) values('{tsrc}','{tdst}','{keya}',{tokena},{htsrc_port},{htdst_port},'{src}','{dst}');"
 								self.executeInsert(query.format(**values))
+
+
 							# MP_CAPABLE SYN-ACK
 							elif ht.bits == 18:
 								self.logger.info("MP_CAPABLE SYN-ACK")
@@ -225,26 +232,34 @@ class SimpleSwitch13(app_manager.RyuApp):
 							# MP_CAPABLE ACK
 							elif ht.bits == 16:
 								self.logger.info("MP_CAPABLE ACK")
-
+								cesty = []
 								found_path = 1
 								dpid = datapath.id
-								paths = list(nx.all_shortest_paths(self.net, src, dst))
-								#								macs = src+'-'+dst
-								path = random.choice(paths)
-								#								if macs in self.connpaths: #Ak uz mam zvolenu cestu
-								#									self.logger.info("Pre takyto srcdst uz mam zvolenu cestu. Pouzijem tuto cestu:")
-								#									path = paths[self.connpaths[macs]]
-								#									print(path)
-								#								else:
-								#									self.logger.info("Pre takyto srcdst nemam este cestu. Pouzijem tuto cestu:")
-								#									path_index = randrange(0,len(paths))
-								#									path = paths[path_index]
-								#									self.connpaths[macs] = path_index
-								#									print(path)
-								#									print(self.connpaths[macs])
-								#									self.logger.info("Takyto je random index: %d.",path_index)
 
-								# path=['08:00:27:5f:ab:7f', 1, 5, 6, '08:00:27:77:27:8c']
+								# path = random.choice(paths)
+
+
+								paths = list(nx.all_simple_paths(self.net, src, dst))
+
+								print ("Vsetky dostupne cesty:")
+								print paths
+
+								for p in paths:
+									x = random.randint(1, 100)
+									tupla = (x, p)
+									cesty.append(tupla)
+
+								cesty = sorted(cesty, key=lambda x: (len(x[1]), x[0]))
+
+								path = cesty[0][1]
+
+								print "Vsetky cesty: "
+								print cesty
+
+								print "Zvolena cesta: "
+								print path
+
+
 								fullpath = path
 								tmppath = path[1:-1]
 								for s in tmppath:
@@ -265,6 +280,23 @@ class SimpleSwitch13(app_manager.RyuApp):
 									self.add_flow(get_datapath(self, s), 3, match, actions)
 						#								command = 'ovs-ofctl -OOpenFlow13 del-flows s1 "eth_dst='+dst+',tcp,tcp_flags=0x010"'
 						#								os.system(command)
+								del cesty[:]
+
+							match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst)
+							actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+															  ofproto.OFPCML_NO_BUFFER)]
+							self.add_flow(datapath, 2, match, actions)
+
+							# Send B->A traffic to controller
+							match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.dst, ipv4_dst=t.src)
+							actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+															  ofproto.OFPCML_NO_BUFFER)]
+							self.add_flow(datapath, 2, match, actions)
+
+
+
+
+
 
 						# MP_JOIN
 						elif subtype == "10" or subtype == "11":
@@ -316,25 +348,32 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 							# MP_JOIN ACK
 							elif ht.bits == 16:
+								cesty = []
 								self.logger.info("MP_JOIN ACK.")
 
 								found_path = 1
 								dpid = datapath.id
-								paths = list(nx.all_shortest_paths(self.net, src, dst))
-								#							macs = src+'-'+dst
-								path = random.choice(paths)
-								#							if macs in self.connpaths: #Ak uz mam zvolenu cestu
-								#								self.logger.info("Pre takyto srcdst uz mam zvolenu cestu. Pouzijem tuto cestu:")
-								#								path = paths[self.connpaths[macs]]
-								#								print(path)
-								#							else:
-								#								self.logger.info("Pre takyto srcdst nemam este cestu. Pouzijem tuto cestu:")
-								#								path_index = randrange(0,len(paths))
-								#								path = paths[path_index]
-								#								self.connpaths[macs] = path_index
-								#								print(path)
-								#								print(self.connpaths[macs])
-								#								self.logger.info("Takyto je random index: %d.",path_index)
+
+								# path = random.choice(paths)
+
+								paths = list(nx.all_simple_paths(self.net, src, dst))
+								print ("Vsetky dostupne cesty:")
+								print paths
+
+								for p in paths:
+									x = random.randint(1, 100)
+									tupla = (x, p)
+									cesty.append(tupla)
+
+								cesty = sorted(cesty, key=lambda x: (len(x[1]), x[0]))
+
+								path = cesty[0][1]
+
+								print "Vsetky cesty: "
+								print cesty
+
+								print "Zvolena cesta: "
+								print path
 
 								fullpath = path
 								tmppath = path[1:-1]
@@ -354,6 +393,20 @@ class SimpleSwitch13(app_manager.RyuApp):
 									actions = [parser.OFPActionOutput(out_port)]
 									self.logger.info("Instalujem out_port %d pravidlo do switchu %d", out_port, s)
 									self.add_flow(get_datapath(self, s), 3, match, actions)
+
+								del cesty[:]
+
+								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst)
+								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+																  ofproto.OFPCML_NO_BUFFER)]
+								self.add_flow(datapath, 2, match, actions)
+
+								# Send B->A traffic to controller
+								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.dst, ipv4_dst=t.src)
+								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+																  ofproto.OFPCML_NO_BUFFER)]
+								self.add_flow(datapath, 2, match, actions)
+
 
 								# Sender's HASH.
 								hmachash = hexopt[4:]
@@ -406,6 +459,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 									print ('srcmac = %s', srcmac)
 									print ('dstmac = %s', dstmac)
 
+
 		if dst in self.net:
 			path = nx.shortest_path(self.net,src,dst)
 
@@ -436,8 +490,6 @@ class SimpleSwitch13(app_manager.RyuApp):
 								  in_port=in_port, actions=actions, data=data)
 		datapath.send_msg(out)
 
-		print ("***** Na konci eventin")
-		print(self.net.edges.data())
 
 
 	@set_ev_cls(event.EventSwitchEnter)
