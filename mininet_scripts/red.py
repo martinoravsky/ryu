@@ -24,12 +24,12 @@ def myNetwork():
 					  port=6633)
 
 	info( '*** Add switches\n')
-	s1 = net.addSwitch('s1', cls=OVSKernelSwitch, protocols='OpenFlow15')
-	s2 = net.addSwitch('s2', cls=OVSKernelSwitch, protocols='OpenFlow15')
-	s3 = net.addSwitch('s3', cls=OVSKernelSwitch, protocols='OpenFlow15')
-	s4 = net.addSwitch('s4', cls=OVSKernelSwitch, protocols='OpenFlow15')
-	s5 = net.addSwitch('s5', cls=OVSKernelSwitch, protocols='OpenFlow15')
-	s6 = net.addSwitch('s6', cls=OVSKernelSwitch, protocols='OpenFlow15')
+	s1 = net.addSwitch('s1', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s2 = net.addSwitch('s2', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s3 = net.addSwitch('s3', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s4 = net.addSwitch('s4', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s5 = net.addSwitch('s5', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s6 = net.addSwitch('s6', cls=OVSKernelSwitch, protocols='OpenFlow13')
 
 
 	net.addLink('s1','s2')

@@ -13,27 +13,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from ryu.base import app_manager
-from ryu.controller import mac_to_port
 from ryu.controller import ofp_event
 from ryu.controller.handler import MAIN_DISPATCHER, CONFIG_DISPATCHER
 from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ofproto_v1_3
-from ryu.lib.mac import haddr_to_bin
 from ryu.lib.packet import packet
 from ryu.lib.packet import ethernet, ether_types
 from ryu.lib.packet import tcp, ipv4
 from ryu.topology.api import get_switch, get_link
-from ryu.app.wsgi import ControllerBase
 from ryu.topology import event, switches
 import networkx as nx
 import binascii, hashlib, hmac, os, mysql.connector
 from mysql.connector import Error
 import random
-from collections import defaultdict
-from random import randrange
 from ryu.app.ofctl.api import get_datapath
-import sys
 from ryu.lib.packet import arp
+from ryu.lib.packet import icmp
 from ryu.lib import mac
 from connection import connect
 
@@ -44,14 +39,12 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 	def __init__(self, *args, **kwargs):
 		super(SimpleSwitch13, self).__init__(*args, **kwargs)
-		self.mac_to_port = {}
 		self.topology_api_app = self
 		self.net = nx.DiGraph()
 		self.nodes = {}
 		self.links = {}
 		self.table = {}
-		self.cesty = []
-
+		self.mac_to_port = {}
 
 	def executeInsert(self, query):
 		"""
@@ -86,6 +79,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 		finally:
 			conn.commit()
 			conn.close()
+
 	@set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
 	def switch_features_handler(self, ev):
 		datapath = ev.msg.datapath
@@ -95,6 +89,21 @@ class SimpleSwitch13(app_manager.RyuApp):
 		actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
 										  ofproto.OFPCML_NO_BUFFER)]
 		self.add_flow(datapath, 0, match, actions)
+
+		match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_flags=0x0002)
+		actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+										  ofproto.OFPCML_NO_BUFFER)]
+		self.add_flow(datapath, 2, match, actions)
+
+		match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_flags=0x0012)
+		actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+										  ofproto.OFPCML_NO_BUFFER)]
+		self.add_flow(datapath, 2, match, actions)
+
+		match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_flags=0x0010)
+		actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
+										  ofproto.OFPCML_NO_BUFFER)]
+		self.add_flow(datapath, 2, match, actions)
 
 	def add_flow(self, datapath, priority, match, actions, buffer_id=None):
 		ofproto = datapath.ofproto
@@ -124,14 +133,24 @@ class SimpleSwitch13(app_manager.RyuApp):
 		ofproto = datapath.ofproto
 		parser = datapath.ofproto_parser
 		in_port = msg.match['in_port']
-
+		dpid = datapath.id
+		self.mac_to_port.setdefault(dpid, {})
 		pkt = packet.Packet(msg.data)
 		eth = pkt.get_protocols(ethernet.ethernet)[0]
 
 		dst = eth.dst
 		src = eth.src
-		dpid = datapath.id
-		self.mac_to_port.setdefault(dpid, {})
+
+
+
+		if eth.ethertype == ether_types.ETH_TYPE_LLDP:
+			return
+
+
+		if src not in self.net:
+			self.net.add_node(src)
+			self.net.add_edge(dpid,src,port = msg.match['in_port'])
+			self.net.add_edge(src,dpid)
 
 		arp_pkt = pkt.get_protocol(arp.arp)
 
@@ -146,17 +165,15 @@ class SimpleSwitch13(app_manager.RyuApp):
 			else:
 				self.table[(dpid,arp_src_ip,arp_dst_ip)] = in_port
 				print self.table
-				self.mac_to_port[datapath.id][src] = in_port
 
-		if eth.ethertype == ether_types.ETH_TYPE_LLDP:
-			return
+
+
+
+
 
 		self.logger.info("prisiel paket na switch c. %d, src: %s, dst: %s, in_port: %s", dpid, src, dst, in_port)
 
-		if src not in self.net:
-			self.net.add_node(src)
-			self.net.add_edge(dpid,src,port = msg.match['in_port'])
-			self.net.add_edge(src,dpid)
+
 
 		t = pkt.get_protocol(ipv4.ipv4)
 
@@ -186,22 +203,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 							# MP CAPABLE SYN
 							if ht.bits == 2:
 								self.logger.info("MP_CAPABLE SYN")
+								cesty = []
 
-								# Send A->B traffic to controller
-								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst,
-														tcp_src=ht.src_port, tcp_dst=ht.dst_port)
-								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
-																  ofproto.OFPCML_NO_BUFFER)]
-								self.add_flow(datapath, 3, match, actions)
-
-								# Send B->A traffic to controller
-								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.dst, ipv4_dst=t.src,
-														tcp_src=ht.dst_port, tcp_dst=ht.src_port)
-								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
-																  ofproto.OFPCML_NO_BUFFER)]
-								self.add_flow(datapath, 3, match, actions)
-
-								# Sender's key.
 								keya = hexopt[4:]
 
 								# Sender's token is a SHA1 truncated hash of the key.
@@ -209,10 +212,40 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 								# Store IPs, ports, sender's key and sender's token.
 								values = {'tsrc': t.src, 'tdst': t.dst, 'keya': keya, 'tokena': tokena,
-										  'htsrc_port': ht.src_port, 'htdst_port': ht.dst_port, 'src': src, 'dst': dst}
+										  'htsrc_port': ht.src_port, 'htdst_port': ht.dst_port, 'src': src,
+										  'dst': dst}
 								query = "replace INTO mptcp.conn (ip_src,ip_dst,keya,tokena,tcp_src,tcp_dst,src,dst) values('{tsrc}','{tdst}','{keya}',{tokena},{htsrc_port},{htdst_port},'{src}','{dst}');"
 								self.executeInsert(query.format(**values))
 
+								# learn a mac address to avoid FLOOD next time.
+								self.mac_to_port[dpid][src] = in_port
+
+								# if the destination mac address is already learned,
+								# decide which port to output the packet, otherwise FLOOD.
+								if dst in self.mac_to_port[dpid]:
+									out_port = self.mac_to_port[dpid][dst]
+								else:
+									out_port = ofproto.OFPP_FLOOD
+
+								actions = [parser.OFPActionOutput(out_port)]
+
+								# Install flow to avoid FLOOD next time.
+								if out_port != ofproto.OFPP_FLOOD:
+									match = parser.OFPMatch(in_port=in_port, eth_dst=dst)
+									if msg.buffer_id != ofproto.OFP_NO_BUFFER:
+										self.add_flow(datapath, 1, match, actions, msg.buffer_id)
+										return
+									else:
+										self.add_flow(datapath, 1, match, actions)
+								data = None
+								if msg.buffer_id == ofproto.OFP_NO_BUFFER:
+									data = msg.data
+
+								out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
+														  in_port=in_port, actions=actions, data=data)
+								datapath.send_msg(out)
+
+								return
 
 							# MP_CAPABLE SYN-ACK
 							elif ht.bits == 18:
@@ -230,79 +263,95 @@ class SimpleSwitch13(app_manager.RyuApp):
 								query = "UPDATE mptcp.conn SET keyb='{keyb}',tokenb={tokenb} WHERE ip_src='{tdst}' AND ip_dst='{tsrc}' AND tcp_src={htdst_port} AND tcp_dst={htsrc_port};"
 								self.executeInsert(query.format(**values))
 
+								# learn a mac address to avoid FLOOD next time.
+								self.mac_to_port[dpid][src] = in_port
+
+								# if the destination mac address is already learned,
+								# decide which port to output the packet, otherwise FLOOD.
+								if dst in self.mac_to_port[dpid]:
+									out_port = self.mac_to_port[dpid][dst]
+								else:
+									out_port = ofproto.OFPP_FLOOD
+
+								actions = [parser.OFPActionOutput(out_port)]
+
+								# Install flow to avoid FLOOD next time.
+								if out_port != ofproto.OFPP_FLOOD:
+									match = parser.OFPMatch(in_port=in_port, eth_dst=dst)
+									if msg.buffer_id != ofproto.OFP_NO_BUFFER:
+										self.add_flow(datapath, 1, match, actions, msg.buffer_id)
+										return
+									else:
+										self.add_flow(datapath, 1, match, actions)
+								data = None
+								if msg.buffer_id == ofproto.OFP_NO_BUFFER:
+									data = msg.data
+
+								out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
+														  in_port=in_port, actions=actions, data=data)
+								datapath.send_msg(out)
+
+								return
+
 							# MP_CAPABLE ACK
 							elif ht.bits == 16:
+
+								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_flags=0x0002)
+								mod = parser.OFPFlowMod(datapath=datapath, command=ofproto.OFPFC_DELETE,
+														out_port=ofproto.OFPP_ANY, out_group=ofproto.OFPG_ANY,
+														match=match)
+								datapath.send_msg(mod)
+
+								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_flags=0x0012)
+								mod = parser.OFPFlowMod(datapath=datapath, command=ofproto.OFPFC_DELETE,
+														out_port=ofproto.OFPP_ANY, out_group=ofproto.OFPG_ANY,
+														match=match)
+								datapath.send_msg(mod)
+
+								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_flags=0x0010)
+								mod = parser.OFPFlowMod(datapath=datapath, command=ofproto.OFPFC_DELETE,
+														out_port=ofproto.OFPP_ANY, out_group=ofproto.OFPG_ANY,
+														match=match)
+								datapath.send_msg(mod)
+
 								self.logger.info("MP_CAPABLE ACK")
 
-								found_path = 1
-								dpid = datapath.id
+								# learn a mac address to avoid FLOOD next time.
+								self.mac_to_port[dpid][src] = in_port
 
-								# path = random.choice(paths)
+								# if the destination mac address is already learned,
+								# decide which port to output the packet, otherwise FLOOD.
+								if dst in self.mac_to_port[dpid]:
+									out_port = self.mac_to_port[dpid][dst]
+								else:
+									out_port = ofproto.OFPP_FLOOD
 
-								paths = list(nx.shortest_simple_paths(self.net, src, dst))
+								actions = [parser.OFPActionOutput(out_port)]
 
-								print ("Vsetky dostupne cesty:")
-								print paths
+								# Install flow to avoid FLOOD next time.
+								if out_port != ofproto.OFPP_FLOOD:
+									match = parser.OFPMatch(in_port=in_port, eth_dst=dst)
+									if msg.buffer_id != ofproto.OFP_NO_BUFFER:
+										self.add_flow(datapath, 1, match, actions, msg.buffer_id)
+										return
+									else:
+										self.add_flow(datapath, 1, match, actions)
+								data = None
+								if msg.buffer_id == ofproto.OFP_NO_BUFFER:
+									data = msg.data
 
-								for p in paths:
-									self.cesty.append(p)
+								out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
+														  in_port=in_port, actions=actions, data=data)
+								datapath.send_msg(out)
 
-								path = self.cesty[0]
+								return
 
-								print path
-
-								fullpath = path
-								tmppath = path[1:-1]
-								for s in tmppath:
-									match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst,
-															tcp_src=ht.src_port, tcp_dst=ht.dst_port)
-									next = fullpath[fullpath.index(s) + 1]
-									out_port = self.net[s][next]['port']
-									actions = [parser.OFPActionOutput(out_port)]
-									self.logger.info("Instalujem out_port %d pravidlo do switchu %d", out_port, s)
-									self.add_flow(get_datapath(self, s), 3, match, actions)
-
-									match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.dst, ipv4_dst=t.src,
-															tcp_src=ht.dst_port, tcp_dst=ht.src_port)
-									prev = fullpath[fullpath.index(s) - 1]
-									out_port = self.net[s][prev]['port']
-									actions = [parser.OFPActionOutput(out_port)]
-									self.logger.info("Instalujem out_port %d pravidlo do switchu %d", out_port, s)
-									self.add_flow(get_datapath(self, s), 3, match, actions)
-						#								command = 'ovs-ofctl -OOpenFlow13 del-flows s1 "eth_dst='+dst+',tcp,tcp_flags=0x010"'
-						#								os.system(command)
-
-
-							match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst)
-							actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
-															  ofproto.OFPCML_NO_BUFFER)]
-							self.add_flow(datapath, 2, match, actions)
-
-							# Send B->A traffic to controller
-							match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.dst, ipv4_dst=t.src)
-							actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
-															  ofproto.OFPCML_NO_BUFFER)]
-							self.add_flow(datapath, 2, match, actions)
 
 						# MP_JOIN
 						elif subtype == "10" or subtype == "11":
 							# MP_JOIN SYN
 							if ht.bits == 2:
 								self.logger.info("MP_JOIN SYN")
-
-								# Send A->B traffic to controller
-								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst,
-														tcp_src=ht.src_port, tcp_dst=ht.dst_port)
-								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
-																  ofproto.OFPCML_NO_BUFFER)]
-								self.add_flow(datapath, 3, match, actions)
-
-								# Send B->A traffic to controller
-								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.dst, ipv4_dst=t.src,
-														tcp_src=ht.dst_port, tcp_dst=ht.src_port)
-								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
-																  ofproto.OFPCML_NO_BUFFER)]
-								self.add_flow(datapath, 3, match, actions)
 
 								# Receiver's token. From the MPTCP connection.
 								tokenb = int(hexopt[4:][:8], 16)
@@ -315,6 +364,36 @@ class SimpleSwitch13(app_manager.RyuApp):
 										  'htsrc_port': ht.src_port, 'htdst_port': ht.dst_port}
 								query = "replace INTO mptcp.subflow (ip_src,ip_dst,tokenb,noncea,tcp_src,tcp_dst) values('{tsrc}','{tdst}',{tokenb},'{noncea}',{htsrc_port},{htdst_port});"
 								self.executeInsert(query.format(**values))
+
+								# learn a mac address to avoid FLOOD next time.
+								self.mac_to_port[dpid][src] = in_port
+
+								# if the destination mac address is already learned,
+								# decide which port to output the packet, otherwise FLOOD.
+								if dst in self.mac_to_port[dpid]:
+									out_port = self.mac_to_port[dpid][dst]
+								else:
+									out_port = ofproto.OFPP_FLOOD
+
+								actions = [parser.OFPActionOutput(out_port)]
+
+								# Install flow to avoid FLOOD next time.
+								if out_port != ofproto.OFPP_FLOOD:
+									match = parser.OFPMatch(in_port=in_port, eth_dst=dst)
+									if msg.buffer_id != ofproto.OFP_NO_BUFFER:
+										self.add_flow(datapath, 1, match, actions, msg.buffer_id)
+										return
+									else:
+										self.add_flow(datapath, 1, match, actions)
+								data = None
+								if msg.buffer_id == ofproto.OFP_NO_BUFFER:
+									data = msg.data
+
+								out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
+														  in_port=in_port, actions=actions, data=data)
+								datapath.send_msg(out)
+
+								return
 
 							# MP_JOIN SYN-ACK
 							elif ht.bits == 18:
@@ -332,12 +411,62 @@ class SimpleSwitch13(app_manager.RyuApp):
 								query = "UPDATE mptcp.subflow SET trunhash={trunhash},nonceb='{nonceb}' WHERE ip_src='{tdst}' AND ip_dst='{tsrc}' AND tcp_src={htdst_port} AND tcp_dst={htsrc_port};"
 								self.executeInsert(query.format(**values))
 
+								# learn a mac address to avoid FLOOD next time.
+								self.mac_to_port[dpid][src] = in_port
+
+								# if the destination mac address is already learned,
+								# decide which port to output the packet, otherwise FLOOD.
+								if dst in self.mac_to_port[dpid]:
+									out_port = self.mac_to_port[dpid][dst]
+								else:
+									out_port = ofproto.OFPP_FLOOD
+
+								actions = [parser.OFPActionOutput(out_port)]
+
+								# Install flow to avoid FLOOD next time.
+								if out_port != ofproto.OFPP_FLOOD:
+									match = parser.OFPMatch(in_port=in_port, eth_dst=dst)
+									if msg.buffer_id != ofproto.OFP_NO_BUFFER:
+										self.add_flow(datapath, 1, match, actions, msg.buffer_id)
+										return
+									else:
+										self.add_flow(datapath, 1, match, actions)
+								data = None
+								if msg.buffer_id == ofproto.OFP_NO_BUFFER:
+									data = msg.data
+
+								out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
+														  in_port=in_port, actions=actions, data=data)
+								datapath.send_msg(out)
+
+								return
+
+
+
 							# MP_JOIN ACK
 							elif ht.bits == 16:
-
+								cesty = []
 								self.logger.info("MP_JOIN ACK.")
 
+								match = parser.OFPMatch(eth_type=0x0800, ip_proto =6, tcp_flags=0x0002)
+								mod = parser.OFPFlowMod(datapath=datapath, command=ofproto.OFPFC_DELETE,
+														out_port=ofproto.OFPP_ANY, out_group=ofproto.OFPG_ANY,
+														match=match)
+								datapath.send_msg(mod)
 
+								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_flags=0x0012)
+								mod = parser.OFPFlowMod(datapath=datapath, command=ofproto.OFPFC_DELETE,
+														out_port=ofproto.OFPP_ANY, out_group=ofproto.OFPG_ANY,
+														match=match)
+								datapath.send_msg(mod)
+
+								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_flags=0x0010)
+								mod = parser.OFPFlowMod(datapath=datapath, command=ofproto.OFPFC_DELETE,
+														out_port=ofproto.OFPP_ANY, out_group=ofproto.OFPG_ANY,
+														match=match)
+								datapath.send_msg(mod)
+
+								print("Mazem pravidlo pre ACK!")
 
 
 								# Sender's HASH.
@@ -391,93 +520,65 @@ class SimpleSwitch13(app_manager.RyuApp):
 									print ('srcmac = %s', srcmac)
 									print ('dstmac = %s', dstmac)
 
-									found_path = 1
-									dpid = datapath.id
+									# learn a mac address to avoid FLOOD next time.
+									self.mac_to_port[dpid][src] = in_port
 
-									print "Vsetky cesty: "
-									print self.cesty
+									# if the destination mac address is already learned,
+									# decide which port to output the packet, otherwise FLOOD.
+									if dst in self.mac_to_port[dpid]:
+										out_port = self.mac_to_port[dpid][dst]
+									else:
+										out_port = ofproto.OFPP_FLOOD
 
-									for p in self.cesty:
-										if p[0] == srcmac and p[len(p)-1] == dstmac:
-											print 'Nasiel som cestu.'
-											temp = p
-											break
+									actions = [parser.OFPActionOutput(out_port)]
 
-									print "Zvolena cesta: "
-									print temp
+									# Install flow to avoid FLOOD next time.
+									if out_port != ofproto.OFPP_FLOOD:
+										match = parser.OFPMatch(in_port=in_port, eth_dst=dst)
+										if msg.buffer_id != ofproto.OFP_NO_BUFFER:
+											self.add_flow(datapath, 1, match, actions, msg.buffer_id)
+											return
+										else:
+											self.add_flow(datapath, 1, match, actions)
+									data = None
+									if msg.buffer_id == ofproto.OFP_NO_BUFFER:
+										data = msg.data
 
-									#temp[0] = src
-									#temp[len(temp)-1] = dst
+									out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
+															  in_port=in_port, actions=actions, data=data)
+									datapath.send_msg(out)
 
-									print "Upravena cesta:"
-									print temp
-									fullpath = temp
-									tmppath = temp[1:-1]
+									return
 
-									print self.cesty
-									for s in tmppath:
-										match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src,
-																ipv4_dst=t.dst,
-																tcp_src=ht.src_port, tcp_dst=ht.dst_port)
-										next = fullpath[fullpath.index(s) + 1]
-										out_port = self.net[s][next]['port']
-										actions = [parser.OFPActionOutput(out_port)]
-										self.logger.info("Instalujem out_port %d pravidlo do switchu %d", out_port, s)
-										self.add_flow(get_datapath(self, s), 3, match, actions)
+		if arp_pkt:
 
-										match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.dst,
-																ipv4_dst=t.src,
-																tcp_src=ht.dst_port, tcp_dst=ht.src_port)
-										prev = fullpath[fullpath.index(s) - 1]
-										out_port = self.net[s][prev]['port']
-										actions = [parser.OFPActionOutput(out_port)]
-										self.logger.info("Instalujem out_port %d pravidlo do switchu %d", out_port, s)
-										self.add_flow(get_datapath(self, s), 3, match, actions)
+			# learn a mac address to avoid FLOOD next time.
+			self.mac_to_port[dpid][src] = in_port
 
-									match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst)
-									actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
-																	  ofproto.OFPCML_NO_BUFFER)]
-									self.add_flow(datapath, 2, match, actions)
-
-									# Send B->A traffic to controller
-									match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.dst, ipv4_dst=t.src)
-									actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER,
-																	  ofproto.OFPCML_NO_BUFFER)]
-									self.add_flow(datapath, 2, match, actions)
-
-
-
-
-		if dst in self.net:
-			path = nx.shortest_path(self.net,src,dst)
-
-			if dpid not in path:
-				return
-
-			out_port = self.net[dpid][path[path.index(dpid)+1]]['port']
-
-		else:
-			print ("takuto DST nemam, musim floodovat")
-			out_port = ofproto.OFPP_FLOOD
-
-		actions = [parser.OFPActionOutput(out_port)]
-		#
-		# install a flow to avoid packet_in next time
-		if out_port != ofproto.OFPP_FLOOD:
-			match = parser.OFPMatch(in_port=in_port, eth_dst=dst, eth_src=src)
-			if msg.buffer_id != ofproto.OFP_NO_BUFFER:
-				self.add_flow(datapath, 1, match, actions, msg.buffer_id)
-				return
+			# if the destination mac address is already learned,
+			# decide which port to output the packet, otherwise FLOOD.
+			if dst in self.mac_to_port[dpid]:
+				out_port = self.mac_to_port[dpid][dst]
 			else:
-				self.add_flow(datapath, 1, match, actions)
-		data = None
-		if msg.buffer_id == ofproto.OFP_NO_BUFFER:
-			data = msg.data
+				out_port = ofproto.OFPP_FLOOD
 
-		out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
-								  in_port=in_port, actions=actions, data=data)
-		datapath.send_msg(out)
+			actions = [parser.OFPActionOutput(out_port)]
 
+			# Install flow to avoid FLOOD next time.
+			if out_port != ofproto.OFPP_FLOOD:
+				match = parser.OFPMatch(in_port=in_port, eth_dst=dst)
+				if msg.buffer_id != ofproto.OFP_NO_BUFFER:
+					self.add_flow(datapath, 1, match, actions, msg.buffer_id)
+					return
+				else:
+					self.add_flow(datapath, 1, match, actions)
+			data = None
+			if msg.buffer_id == ofproto.OFP_NO_BUFFER:
+				data = msg.data
+
+			out = parser.OFPPacketOut(datapath=datapath, buffer_id=msg.buffer_id,
+									  in_port=in_port, actions=actions, data=data)
+			datapath.send_msg(out)
 
 
 	@set_ev_cls(event.EventSwitchEnter)

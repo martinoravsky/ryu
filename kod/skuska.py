@@ -19,41 +19,52 @@ net.add_edges_from(edges)
 
 
 
-cesty = list(nx.all_simple_paths(net,'B','C'))
-
-print cesty
-
-
 
 
 #print type(cesty)
 
-connpaths = {}
+# connpaths = {}
+#
+# print connpaths
+#
+# for c in cesty:
+# 	if str(c) not in connpaths:
+# 		connpaths[str(c)]=0
+#
+# print connpaths
+#
+#
+# kratka = nx.shortest_path(net,'B','C')
+# connpaths[str(kratka)] +=1
+#
+#
+# print connpaths
+#
+#
+# connpaths = sorted(connpaths.items(),key=lambda kv: (len(kv[0]),kv[1]))
+#
+#
+# #connpaths = sorted(connpaths,key= lambda x: (len(x['path']), x['path']))
+#
+# print connpaths[1][0]
+#
 
-print connpaths
+cesty = []
 
-for c in cesty:
-	if str(c) not in connpaths:
-		connpaths[str(c)]=0
+paths = nx.shortest_simple_paths(net,'A','C')
 
-print connpaths
+for p in paths:
+	cesty.append(p)
 
+#print cesty
 
-kratka = nx.shortest_path(net,'B','C')
-connpaths[str(kratka)] +=1
+cesty = cesty[1:]
 
+#print cesty
 
-print connpaths
-
-
-connpaths = sorted(connpaths.items(),key=lambda kv: (len(kv[0]),kv[1]))
-
-
-#connpaths = sorted(connpaths,key= lambda x: (len(x['path']), x['path']))
-
-print connpaths[1][0]
-
-
-
-
-
+for jozko in cesty:
+	print len(jozko)
+	print jozko[len(jozko[0])-1]
+	if 'A' in jozko[0] and 'C' in jozko[len(jozko)-1]:
+	#if 'A' in jozko[1][0] and 'C' in jozko[1][len(jozko[1])]:
+		print "mam"
