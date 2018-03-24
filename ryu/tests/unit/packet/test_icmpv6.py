@@ -187,7 +187,7 @@ class Test_icmpv6_echo_request(unittest.TestCase):
         echo_str = '%s(%s)' % (icmpv6.echo.__name__, _echo_str)
 
         icmp_values = {'type_': repr(self.type_),
-                       'code': repr(self.code),
+                       'kod': repr(self.code),
                        'csum': repr(self.csum),
                        'data': echo_str}
         _ic_str = ','.join(['%s=%s' % (k, icmp_values[k])
@@ -363,7 +363,7 @@ class Test_icmpv6_neighbor_solicit(unittest.TestCase):
         nd_str = '%s(%s)' % (icmpv6.nd_neighbor.__name__, _nd_str)
 
         icmp_values = {'type_': repr(self.type_),
-                       'code': repr(self.code),
+                       'kod': repr(self.code),
                        'csum': repr(self.csum),
                        'data': nd_str}
         _ic_str = ','.join(['%s=%s' % (k, icmp_values[k])
@@ -488,7 +488,7 @@ class Test_icmpv6_neighbor_advert(Test_icmpv6_neighbor_solicit):
         nd_str = '%s(%s)' % (icmpv6.nd_neighbor.__name__, _nd_str)
 
         icmp_values = {'type_': repr(self.type_),
-                       'code': repr(self.code),
+                       'kod': repr(self.code),
                        'csum': repr(self.csum),
                        'data': nd_str}
         _ic_str = ','.join(['%s=%s' % (k, icmp_values[k])
@@ -652,7 +652,7 @@ class Test_icmpv6_router_solicit(unittest.TestCase):
         rs_str = '%s(%s)' % (icmpv6.nd_router_solicit.__name__, _rs_str)
 
         icmp_values = {'type_': repr(self.type_),
-                       'code': repr(self.code),
+                       'kod': repr(self.code),
                        'csum': repr(self.csum),
                        'data': rs_str}
         _ic_str = ','.join(['%s=%s' % (k, icmp_values[k])
@@ -1053,7 +1053,7 @@ class Test_icmpv6_membership_query(unittest.TestCase):
         mld_str = '%s(%s)' % (icmpv6.mld.__name__, _mld_str)
 
         icmp_values = {'type_': repr(self.type_),
-                       'code': repr(self.code),
+                       'kod': repr(self.code),
                        'csum': repr(self.csum),
                        'data': mld_str}
         _ic_str = ','.join(['%s=%s' % (k, icmp_values[k])
@@ -1314,7 +1314,7 @@ class Test_mldv2_query(unittest.TestCase):
         mld_str = '%s(%s)' % (icmpv6.mldv2_query.__name__, _mld_str)
 
         icmp_values = {'type_': repr(self.type_),
-                       'code': repr(self.code),
+                       'kod': repr(self.code),
                        'csum': repr(self.csum),
                        'data': mld_str}
         _ic_str = ','.join(['%s=%s' % (k, icmp_values[k])
@@ -1581,7 +1581,7 @@ class Test_mldv2_report(unittest.TestCase):
         mld_str = '%s(%s)' % (icmpv6.mldv2_report.__name__, _mld_str)
 
         icmp_values = {'type_': repr(self.type_),
-                       'code': repr(self.code),
+                       'kod': repr(self.code),
                        'csum': repr(self.csum),
                        'data': mld_str}
         _ic_str = ','.join(['%s=%s' % (k, icmp_values[k])

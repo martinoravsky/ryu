@@ -848,7 +848,7 @@ class TestPacket(unittest.TestCase):
                               for k in sorted(echo_values.keys())])
         echo_str = '%s(%s)' % (icmp.echo.__name__, _echo_str)
         icmp_values = {'type': 8,
-                       'code': 0,
+                       'kod': 0,
                        'csum': p_icmp.csum,
                        'data': echo_str}
         _icmp_str = ','.join(['%s=%s' % (k, icmp_values[k])
@@ -1363,7 +1363,7 @@ class TestPacket(unittest.TestCase):
         ipv6_str = '%s(%s)' % (ipv6.ipv6.__name__, _ipv6_str)
 
         icmpv6_values = {'type_': 0,
-                         'code': 0,
+                         'kod': 0,
                          'csum': p_icmpv6.csum,
                          'data': None}
         _icmpv6_str = ','.join(['%s=%s' % (k, repr(icmpv6_values[k]))

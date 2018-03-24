@@ -1207,8 +1207,8 @@ class OFPErrorMsg(MsgBase):
     Attribute  Description
     ========== =========================================================
     type       High level type of error
-    code       Details depending on the type
-    data       Variable length data depending on the type and code
+    kod       Details depending on the type
+    data       Variable length data depending on the type and kod
     ========== =========================================================
 
     ``type`` attribute corresponds to ``type_`` parameter of __init__.
@@ -1233,9 +1233,9 @@ class OFPErrorMsg(MsgBase):
         def error_msg_handler(self, ev):
             msg = ev.msg
 
-            self.logger.debug('OFPErrorMsg received: type=0x%02x code=0x%02x '
+            self.logger.debug('OFPErrorMsg received: type=0x%02x kod=0x%02x '
                               'message=%s',
-                              msg.type, msg.code, utils.hex_array(msg.data))
+                              msg.type, msg.kod, utils.hex_array(msg.data))
     """
     def __init__(self, datapath, type_=None, code=None, data=None):
         super(OFPErrorMsg, self).__init__(datapath)

@@ -207,7 +207,7 @@ class Test_Parser(unittest.TestCase):
             except exception.OFPTruncatedMessage as e:
                 json_dict2 = {'OFPTruncatedMessage':
                               self._msg_to_jsondict(e.ofpmsg)}
-            # XXXdebug code
+            # XXXdebug kod
             open(('/tmp/%s.json' % name), 'w').write(json.dumps(json_dict2))
             eq_(json_dict, json_dict2)
             if 'OFPTruncatedMessage' in json_dict2:

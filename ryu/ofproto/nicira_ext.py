@@ -480,13 +480,13 @@ udp_src_nxm      Integer 16bit   UDP source port.
 udp_dst_nxm      Integer 16bit   UDP destination port.
                                  eth_type_nxm = [0x0800 (IPv4)|0x86dd (IPv6)]
                                  and ip_proto_nxm = 17 (UDP)
-icmpv4_type_nxm  Integer 8bit    Type  matches  the ICMP type and code matches
-                                 the ICMP code.
+icmpv4_type_nxm  Integer 8bit    Type  matches  the ICMP type and kod matches
+                                 the ICMP kod.
                                  Requires setting fields:
                                  eth_type_nxm = 0x0800 (IPv4) and
                                  ip_proto_nxm = 1 (ICMP)
-icmpv4_code_nxm  Integer 8bit    Type  matches  the ICMP type and code matches
-                                 the ICMP code.
+icmpv4_code_nxm  Integer 8bit    Type  matches  the ICMP type and kod matches
+                                 the ICMP kod.
                                  Requires setting fields:
                                  eth_type_nxm = 0x0800 (IPv4) and
                                  ip_proto_nxm = 1 (ICMP)
@@ -517,13 +517,13 @@ ipv6_src_nxm     IPv6 address    IPv6 source address.
 ipv6_dst_nxm     IPv6 address    IPv6 destination address.
                                  Requires setting fields:
                                  eth_type_nxm = 0x86dd (IPv6)
-icmpv6_type_nxm  Integer 8bit    Type  matches the ICMP type and code matches
-                                 the ICMP code.
+icmpv6_type_nxm  Integer 8bit    Type  matches the ICMP type and kod matches
+                                 the ICMP kod.
                                  Requires setting fields:
                                  eth_type_nxm = 0x86dd (IPv6) and
                                  ip_proto_nxm = 58 (ICMP for IPv6)
-icmpv6_code_nxm  Integer 8bit    Type  matches the ICMP type and code matches
-                                 the ICMP code.
+icmpv6_code_nxm  Integer 8bit    Type  matches the ICMP type and kod matches
+                                 the ICMP kod.
                                  Requires setting fields:
                                  eth_type_nxm = 0x86dd (IPv6) and
                                  ip_proto_nxm = 58 (ICMP for IPv6)

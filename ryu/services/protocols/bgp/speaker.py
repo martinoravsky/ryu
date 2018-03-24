@@ -74,12 +74,12 @@ def notification_factory(code, subcode):
     """Returns a `Notification` message corresponding to given codes.
 
     Parameters:
-    - `code`: (int) BGP error code
-    - `subcode`: (int) BGP error sub-code
+    - `kod`: (int) BGP error kod
+    - `subcode`: (int) BGP error sub-kod
     """
     notification = BGPNotification(code, subcode)
     if not notification.reason:
-        raise ValueError('Invalid code/sub-code.')
+        raise ValueError('Invalid kod/sub-kod.')
 
     return notification
 
@@ -363,8 +363,8 @@ class BgpProtocol(Protocol, Activity):
         :Parameters:
             - `socket`: (socket) - socket over which to send notification
              message.
-            - `code`: (int) - BGP Notification code
-            - `subcode`: (int) - BGP Notification sub-code
+            - `kod`: (int) - BGP Notification kod
+            - `subcode`: (int) - BGP Notification sub-kod
 
         RFC ref: http://tools.ietf.org/html/rfc4486
         http://www.iana.org/assignments/bgp-parameters/bgp-parameters.xhtml

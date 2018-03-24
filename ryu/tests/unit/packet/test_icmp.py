@@ -195,7 +195,7 @@ class Test_icmp(unittest.TestCase):
 
     def test_to_string(self):
         icmp_values = {'type': repr(self.type_),
-                       'code': repr(self.code),
+                       'kod': repr(self.code),
                        'csum': repr(self.csum),
                        'data': repr(self.data)}
         _ic_str = ','.join(['%s=%s' % (k, icmp_values[k])

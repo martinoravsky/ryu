@@ -98,7 +98,7 @@ def import_module(modname):
             # e.g.) modname = './path/to/module/name.py'
             return _import_module_file(modname)
         except SyntaxError:
-            # The file didn't parse as valid Python code, try
+            # The file didn't parse as valid Python kod, try
             # importing module assuming 'modname' is a Python module name
             # e.g.) modname = 'path.to.module.name'
             return importlib.import_module(modname)

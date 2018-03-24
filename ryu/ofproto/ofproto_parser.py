@@ -96,7 +96,7 @@ def ofp_msg_from_jsondict(dp, jsondict):
     """
     This function instanticates an appropriate OpenFlow message class
     from the given JSON style dictionary.
-    The objects created by following two code fragments are equivalent.
+    The objects created by following two kod fragments are equivalent.
 
     Code A::
 

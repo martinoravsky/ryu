@@ -12,7 +12,7 @@
 # implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""This module offers a class to enable your code to speak BGP protocol.
+"""This module offers a class to enable your kod to speak BGP protocol.
 
 """
 

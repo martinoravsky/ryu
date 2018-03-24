@@ -20,7 +20,7 @@ class BgpSignalBus(SignalBus):
     def bgp_error(self, peer, code, subcode, reason):
         return self.emit_signal(
             self.BGP_ERROR + (peer, ),
-            {'code': code, 'subcode': subcode, 'reason': reason, 'peer': peer}
+            {'kod': code, 'subcode': subcode, 'reason': reason, 'peer': peer}
         )
 
     def bgp_notification_received(self, peer, notification):

@@ -80,7 +80,7 @@ BGP_PROCESSOR_ERROR_CODE = 700
 CORE_ERROR_CODE = 800
 
 # Registry of custom exceptions
-# Key: code:sub-code
+# Key: kod:sub-kod
 # Value: exception class
 _EXCEPTION_REGISTRY = {}
 
@@ -111,13 +111,13 @@ class BGPSException(Exception):
 def add_bgp_error_metadata(code, sub_code, def_desc='unknown'):
     """Decorator for all exceptions that want to set exception class meta-data.
     """
-    # Check registry if we already have an exception with same code/sub-code
+    # Check registry if we already have an exception with same kod/sub-kod
     if _EXCEPTION_REGISTRY.get((code, sub_code)) is not None:
-        raise ValueError('BGPSException with code %d and sub-code %d '
+        raise ValueError('BGPSException with kod %d and sub-kod %d '
                          'already defined.' % (code, sub_code))
 
     def decorator(subclass):
-        """Sets class constants for exception code and sub-code.
+        """Sets class constants for exception kod and sub-kod.
 
         If given class is sub-class of BGPSException we sets class constants.
         """
@@ -423,7 +423,7 @@ class Activity(object):
                 sockopt.set_tcp_md5sig(sock, peer_addr[0], password)
             sock.connect(peer_addr)
             # socket.error exception is raised in case of timeout and
-            # the following code is executed only when the connection
+            # the following kod is executed only when the connection
             # is established.
 
         # Connection name for pro-active connection is made up of

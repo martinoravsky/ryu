@@ -73,13 +73,13 @@ class Test_wsgi(unittest.TestCase):
                       lambda s, _: eq_(s, '404 Not Found'))
 
     def test_wsgi_decorator_ng_method(self):
-        # XXX: If response code is "405 Method Not Allowed", it is better.
+        # XXX: If response kod is "405 Method Not Allowed", it is better.
         self.wsgi_app({'REQUEST_METHOD': 'PUT',
                        'PATH_INFO': '/test/0123456789abcdef'},
                       lambda s, _: eq_(s, '404 Not Found'))
 
     def test_wsgi_decorator_ng_requirements(self):
-        # XXX: If response code is "400 Bad Request", it is better.
+        # XXX: If response kod is "400 Bad Request", it is better.
         self.wsgi_app({'REQUEST_METHOD': 'GET',
                        'PATH_INFO': '/test/hogehoge'},
                       lambda s, _: eq_(s, '404 Not Found'))

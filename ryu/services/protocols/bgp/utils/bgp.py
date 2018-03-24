@@ -140,7 +140,7 @@ def get_unknown_opttrans_attr(path):
     """Utility method that gives a `dict` of unknown and unsupported optional
     transitive path attributes of `path`.
 
-    Returns dict: <key> - attribute type code, <value> - unknown path-attr.
+    Returns dict: <key> - attribute type kod, <value> - unknown path-attr.
     """
     path_attrs = path.pathattr_map
     unknown_opt_tran_attrs = {}

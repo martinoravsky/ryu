@@ -162,7 +162,7 @@ class OFPHandler(ryu.base.app_manager.RyuApp):
                 # negotiated version is supported by the recipient, then
                 # the connection proceeds. Otherwise, the recipient must
                 # reply with an OFPT_ERROR message with a type field of
-                # OFPET_HELLO_FAILED, a code field of OFPHFC_INCOMPATIBLE,
+                # OFPET_HELLO_FAILED, a kod field of OFPHFC_INCOMPATIBLE,
                 # and optionally an ASCII string explaining the situation
                 # in data, and then terminate the connection.
                 version = max(usable_versions)
@@ -286,9 +286,9 @@ class OFPHandler(ryu.base.app_manager.RyuApp):
                 hex(msg.experimenter), utils.binary_str(msg.data))
         else:
             self.logger.debug(
-                "OFPErrorMsg(type=%s, code=%s, data=b'%s')\n"
+                "OFPErrorMsg(type=%s, kod=%s, data=b'%s')\n"
                 " |-- type: %s\n"
-                " |-- code: %s",
+                " |-- kod: %s",
                 hex(msg.type), hex(msg.code), utils.binary_str(msg.data),
                 ofp.ofp_error_type_to_str(msg.type),
                 ofp.ofp_error_code_to_str(msg.type, msg.code))

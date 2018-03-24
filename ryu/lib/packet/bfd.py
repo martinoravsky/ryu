@@ -157,7 +157,7 @@ class bfd(packet_base.PacketBase):
     ============================== ============================================
     ver                            The version number of the protocol.
                                    This class implements protocol version 1.
-    diag                           A diagnostic code specifying the local
+    diag                           A diagnostic kod specifying the local
                                    system's reason for the last change in
                                    session state.
     state                          The current BFD session state as seen by

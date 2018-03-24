@@ -46,7 +46,7 @@ class icmp(packet_base.PacketBase):
     Attribute      Description
     ============== ====================
     type           Type
-    code           Code
+    kod           Code
     csum           CheckSum \
                    (0 means automatically-calculate when encoding)
     data           Payload. \
@@ -202,9 +202,9 @@ class dest_unreach(stringify.StringifyMixin):
     data_len       data length
     mtu            Next-Hop MTU
 
-                   NOTE: This field is required when icmp code is 4
+                   NOTE: This field is required when icmp kod is 4
 
-                   code 4 = fragmentation needed and DF set
+                   kod 4 = fragmentation needed and DF set
     data           Internet Header + leading octets of original datagram
     ============== =====================================================
     """

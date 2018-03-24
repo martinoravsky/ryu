@@ -27,7 +27,7 @@ from ryu.lib import stringify
 
 ICMPV6_DST_UNREACH = 1       # dest unreachable, codes:
 ICMPV6_PACKET_TOO_BIG = 2       # packet too big
-ICMPV6_TIME_EXCEEDED = 3       # time exceeded, code:
+ICMPV6_TIME_EXCEEDED = 3       # time exceeded, kod:
 ICMPV6_PARAM_PROB = 4       # ip6 header bad
 
 ICMPV6_ECHO_REQUEST = 128     # echo service
@@ -87,7 +87,7 @@ class icmpv6(packet_base.PacketBase):
     Attribute      Description
     ============== ====================
     type\_         Type
-    code           Code
+    kod           Code
     csum           CheckSum
                    (0 means automatically-calculate when encoding)
     data           Payload.

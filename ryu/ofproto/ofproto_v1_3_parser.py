@@ -186,8 +186,8 @@ class OFPErrorMsg(MsgBase):
     Attribute  Description
     ========== =========================================================
     type       High level type of error
-    code       Details depending on the type
-    data       Variable length data depending on the type and code
+    kod       Details depending on the type
+    data       Variable length data depending on the type and kod
     ========== =========================================================
 
     ``type`` attribute corresponds to ``type_`` parameter of __init__.
@@ -231,9 +231,9 @@ class OFPErrorMsg(MsgBase):
         def error_msg_handler(self, ev):
             msg = ev.msg
 
-            self.logger.debug('OFPErrorMsg received: type=0x%02x code=0x%02x '
+            self.logger.debug('OFPErrorMsg received: type=0x%02x kod=0x%02x '
                               'message=%s',
-                              msg.type, msg.code, utils.hex_array(msg.data))
+                              msg.type, msg.kod, utils.hex_array(msg.data))
     """
     def __init__(self, datapath, type_=None, code=None, data=None, **kwargs):
         super(OFPErrorMsg, self).__init__(datapath)
@@ -729,7 +729,7 @@ class OFPMatch(StringifyMixin):
     sctp_src         Integer 16bit   SCTP source port
     sctp_dst         Integer 16bit   SCTP destination port
     icmpv4_type      Integer 8bit    ICMP type
-    icmpv4_code      Integer 8bit    ICMP code
+    icmpv4_code      Integer 8bit    ICMP kod
     arp_op           Integer 16bit   ARP opcode
     arp_spa          IPv4 address    ARP source IPv4 address
     arp_tpa          IPv4 address    ARP target IPv4 address
@@ -739,7 +739,7 @@ class OFPMatch(StringifyMixin):
     ipv6_dst         IPv6 address    IPv6 destination address
     ipv6_flabel      Integer 32bit   IPv6 Flow Label
     icmpv6_type      Integer 8bit    ICMPv6 type
-    icmpv6_code      Integer 8bit    ICMPv6 code
+    icmpv6_code      Integer 8bit    ICMPv6 kod
     ipv6_nd_target   IPv6 address    Target address for ND
     ipv6_nd_sll      MAC address     Source link-layer for ND
     ipv6_nd_tll      MAC address     Target link-layer for ND
@@ -981,7 +981,7 @@ class OFPMatch(StringifyMixin):
         OXM_OF_SCTP_SRC        SCTP source port
         OXM_OF_SCTP_DST        SCTP destination port
         OXM_OF_ICMPV4_TYPE     ICMP type
-        OXM_OF_ICMPV4_CODE     ICMP code
+        OXM_OF_ICMPV4_CODE     ICMP kod
         OXM_OF_ARP_OP          ARP opcode
         OXM_OF_ARP_SPA         ARP source IPv4 address
         OXM_OF_ARP_TPA         ARP target IPv4 address
@@ -991,7 +991,7 @@ class OFPMatch(StringifyMixin):
         OXM_OF_IPV6_DST        IPv6 destination address
         OXM_OF_IPV6_FLABEL     IPv6 Flow Label
         OXM_OF_ICMPV6_TYPE     ICMPv6 type
-        OXM_OF_ICMPV6_CODE     ICMPv6 code
+        OXM_OF_ICMPV6_CODE     ICMPv6 kod
         OXM_OF_IPV6_ND_TARGET  Target address for ND
         OXM_OF_IPV6_ND_SLL     Source link-layer for ND
         OXM_OF_IPV6_ND_TLL     Target link-layer for ND

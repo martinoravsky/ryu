@@ -75,8 +75,8 @@ BGP_CAP_FOUR_OCTET_AS_NUMBER = 65  # RFC 4893
 BGP_CAP_ENHANCED_ROUTE_REFRESH = 70  # https://tools.ietf.org/html/\
 # draft-ietf-idr-bgp-enhanced-route-refresh-05
 BGP_CAP_ROUTE_REFRESH_CISCO = 128  # in cisco routers, there are two\
-# route refresh code: one using the capability code of 128 (old),
-# another using the capability code of 2 (new).
+# route refresh kod: one using the capability kod of 128 (old),
+# another using the capability kod of 2 (new).
 
 BGP_ATTR_FLAG_OPTIONAL = 1 << 7
 BGP_ATTR_FLAG_TRANSITIVE = 1 << 6
@@ -201,10 +201,10 @@ class BgpExc(Exception):
     """Base bgp exception."""
 
     CODE = 0
-    """BGP error code."""
+    """BGP error kod."""
 
     SUB_CODE = 0
-    """BGP error sub-code."""
+    """BGP error sub-kod."""
 
     SEND_ERROR = True
     """Flag if set indicates Notification message should be sent to peer."""
@@ -407,7 +407,7 @@ class InvalidOriginError(BgpExc):
     """Error indicates undefined Origin attribute value.
 
     RFC says: If the ORIGIN attribute has an undefined value, then the Error
-    Sub- code MUST be set to Invalid Origin Attribute.  The Data field MUST
+    Sub- kod MUST be set to Invalid Origin Attribute.  The Data field MUST
     contain the unrecognized attribute (type, length, and value).
     """
     CODE = BGP_ERROR_UPDATE_MESSAGE_ERROR
@@ -2145,7 +2145,7 @@ class FlowSpecIPv4NLRI(_FlowSpecNLRIBase):
         dst_port    Integer       Numeric   Destination port number.
         src_port    Integer       Numeric   Source port number.
         icmp_type   Integer       Numeric   ICMP type.
-        icmp_code   Integer       Numeric   ICMP code.
+        icmp_code   Integer       Numeric   ICMP kod.
         tcp_flags   Fixed string  Bitmask   TCP flags.
                                             Supported values are
                                             ``CWR``, ``ECN``, ``URGENT``,
@@ -2313,7 +2313,7 @@ class FlowSpecIPv6NLRI(_FlowSpecNLRIBase):
         dst_port    Integer       Numeric   Destination port number.
         src_port    Integer       Numeric   Source port number.
         icmp_type   Integer       Numeric   ICMP type.
-        icmp_code   Integer       Numeric   ICMP code.
+        icmp_code   Integer       Numeric   ICMP kod.
         tcp_flags   Fixed string  Bitmask   TCP flags.
                                             Supported values are
                                             ``CWR``, ``ECN``, ``URGENT``,
@@ -3016,9 +3016,9 @@ class FlowSpecIcmpType(_FlowSpecNumeric):
 @_FlowSpecComponentBase.register_type(
     _FlowSpecIPv6Component.TYPE_ICMP_CODE, addr_family.IP6)
 class FlowSpecIcmpCode(_FlowSpecNumeric):
-    """ICMP code Flow Specification NLRI component
+    """ICMP kod Flow Specification NLRI component
 
-    Set the code field of an ICMP packet at value.
+    Set the kod field of an ICMP packet at value.
     """
     COMPONENT_NAME = 'icmp_code'
 
@@ -4021,7 +4021,7 @@ class BGPPathAttributeCommunities(_PathAttribute):
 @_PathAttribute.register_type(BGP_ATTR_TYPE_ORIGINATOR_ID)
 class BGPPathAttributeOriginatorId(_PathAttribute):
     # ORIGINATOR_ID is a new optional, non-transitive BGP attribute of Type
-    # code 9. This attribute is 4 bytes long and it will be created by an
+    # kod 9. This attribute is 4 bytes long and it will be created by an
     # RR in reflecting a route.
     _VALUE_PACK_STR = '!4s'
     _ATTR_FLAGS = BGP_ATTR_FLAG_OPTIONAL
@@ -4049,7 +4049,7 @@ class BGPPathAttributeOriginatorId(_PathAttribute):
 @_PathAttribute.register_type(BGP_ATTR_TYPE_CLUSTER_LIST)
 class BGPPathAttributeClusterList(_PathAttribute):
     # CLUSTER_LIST is a new, optional, non-transitive BGP attribute of Type
-    # code 10. It is a sequence of CLUSTER_ID values representing the
+    # kod 10. It is a sequence of CLUSTER_ID values representing the
     # reflection path that the route has passed.
     _VALUE_PACK_STR = '!4s'
     _ATTR_FLAGS = BGP_ATTR_FLAG_OPTIONAL
@@ -5518,7 +5518,7 @@ class BGPNotification(BGPMessage):
     marker                     Marker field.  Ignored when encoding.
     len                        Length field.  Ignored when encoding.
     type                       Type field.
-    error_code                 Error code field.
+    error_code                 Error kod field.
     error_subcode              Error subcode field.
     data                       Data field.
     ========================== ===============================================

@@ -50,7 +50,7 @@ EXPERIMENTER = 'EXPERIMENTER'
 
 
 def get_logger(logger=None):
-    # NOTE(jkoelker) use the logger the calling code wants us to
+    # NOTE(jkoelker) use the logger the calling kod wants us to
     if logger is not None:
         return logger
 

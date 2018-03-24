@@ -62,13 +62,13 @@ from . import packet_base
 DHCP_BOOT_REQUEST = 1
 DHCP_BOOT_REPLY = 2
 
-# DHCP message type code
+# DHCP message type kod
 DHCP_DISCOVER = 1
 DHCP_OFFER = 2
 DHCP_REQUEST = 3
 DHCP_ACK = 5
 
-# DHCP options tag code
+# DHCP options tag kod
 DHCP_PAD_OPT = 0
 DHCP_SUBNET_MASK_OPT = 1
 DHCP_GATEWAY_ADDR_OPT = 3
@@ -104,7 +104,7 @@ class dhcp(packet_base.PacketBase):
     ============== ====================
     Attribute      Description
     ============== ====================
-    op             Message op code / message type.\
+    op             Message op kod / message type.\
                    1 = BOOTREQUEST, 2 = BOOTREPLY
     htype          Hardware address type (e.g.  '1' = 10mb ethernet).
     hlen           Hardware address length (e.g.  '6' = 10mb ethernet).

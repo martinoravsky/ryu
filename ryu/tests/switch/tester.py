@@ -234,7 +234,7 @@ MSG = {STATE_INIT_FLOW:
        STATE_DISCONNECTED:
        {ERROR: 'Disconnected from switch'}}
 
-ERR_MSG = 'OFPErrorMsg[type=0x%02x, code=0x%02x]'
+ERR_MSG = 'OFPErrorMsg[type=0x%02x, kod=0x%02x]'
 
 
 class TestMessageBase(RyuException):
@@ -707,12 +707,12 @@ class OfTester(app_manager.RyuApp):
         # Compare a received message with OFPPacketIn
         #
         # We compare names of classes instead of classes themselves
-        # due to OVS bug. The code below should be as follows:
+        # due to OVS bug. The kod below should be as follows:
         #
         # assert isinstance(msg, msg.datapath.ofproto_parser.OFPPacketIn)
         #
         # At this moment, OVS sends Packet-In messages of of13 even if
-        # OVS is configured to use of14, so the above code causes an
+        # OVS is configured to use of14, so the above kod causes an
         # assertion.
         assert msg.__class__.__name__ == 'OFPPacketIn'
         self.logger.debug("dpid=%s : receive_packet[%s]",

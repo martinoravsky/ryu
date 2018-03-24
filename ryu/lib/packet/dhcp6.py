@@ -244,7 +244,7 @@ class option(stringify.StringifyMixin):
          0                   1                   2                   3
          0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        |          option-code          |           option-len          |
+        |          option-kod          |           option-len          |
         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         |                          option-data                          |
         |                      (option-len octets)                      |
@@ -253,7 +253,7 @@ class option(stringify.StringifyMixin):
     ============== ====================
     Attribute      Description
     ============== ====================
-    option-code    An unsigned integer identifying the specific option\
+    option-kod    An unsigned integer identifying the specific option\
                    type carried in this option.
     option-len     An unsigned integer giving the length of the\
                    option-data field in this option in octets.

@@ -164,7 +164,7 @@ class Cmd(cmd.Cmd):
     def do_request(self, line):
         """request <peer> <method> <params>
         send a msgpack-rpc request and print a response.
-        <params> is a python code snippet, it should be eval'ed to a list.
+        <params> is a python kod snippet, it should be eval'ed to a list.
         """
 
         def f(p, method, params):
@@ -176,7 +176,7 @@ class Cmd(cmd.Cmd):
     def do_notify(self, line):
         """notify <peer> <method> <params>
         send a msgpack-rpc notification.
-        <params> is a python code snippet, it should be eval'ed to a list.
+        <params> is a python kod snippet, it should be eval'ed to a list.
         """
 
         def f(p, method, params):

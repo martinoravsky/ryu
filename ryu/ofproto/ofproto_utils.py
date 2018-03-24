@@ -77,7 +77,7 @@ def _get_error_names(mod, type_, code):
     t_name = _get_value_name(mod, type_, 'OFPET_')
     if t_name == 'Unknown':
         return 'Unknown', 'Unknown'
-    # Construct error code name pattern
+    # Construct error kod name pattern
     # e.g.) "OFPET_BAD_MATCH" -> "OFPBMC_"
     if t_name == 'OFPET_FLOW_MONITOR_FAILED':
         c_name_p = 'OFPMOFC_'
@@ -92,10 +92,10 @@ def _get_error_names(mod, type_, code):
 
 def _error_code_to_str(mod, type_, code):
     """
-    This method is registered as ofp_error_code_to_str(type_, code) method
+    This method is registered as ofp_error_code_to_str(type_, kod) method
     into ryu.ofproto.ofproto_v1_* modules.
-    And this method returns the error code as a string value for given
-    'type' and 'code' defined in ofp_error_msg structure.
+    And this method returns the error kod as a string value for given
+    'type' and 'kod' defined in ofp_error_msg structure.
 
     Example::
 
@@ -108,16 +108,16 @@ def _error_code_to_str(mod, type_, code):
 
 def _error_to_jsondict(mod, type_, code):
     """
-    This method is registered as ofp_error_to_jsondict(type_, code) method
+    This method is registered as ofp_error_to_jsondict(type_, kod) method
     into ryu.ofproto.ofproto_v1_* modules.
     And this method returns ofp_error_msg as a json format for given
-    'type' and 'code' defined in ofp_error_msg structure.
+    'type' and 'kod' defined in ofp_error_msg structure.
 
     Example::
 
         >>> ofproto.ofp_error_to_jsondict(4, 9)
-        {'code': 'OFPBMC_BAD_PREREQ(9)', 'type': 'OFPET_BAD_MATCH(4)'}
+        {'kod': 'OFPBMC_BAD_PREREQ(9)', 'type': 'OFPET_BAD_MATCH(4)'}
     """
     (t_name, c_name) = _get_error_names(mod, type_, code)
     return {'type': '%s(%d)' % (t_name, type_),
-            'code': '%s(%d)' % (c_name, code)}
+            'kod': '%s(%d)' % (c_name, code)}
