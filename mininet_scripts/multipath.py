@@ -13,8 +13,7 @@ from subprocess import call
 
 def myNetwork():
 
-	net = Mininet( topo=None,
-				   build=False)
+	net = Mininet( topo=None, build=False, link=TCLink)
 
 	info( '*** Adding controller\n' )
 	c0=net.addController(name='c0',
@@ -33,15 +32,17 @@ def myNetwork():
 	s7 = net.addSwitch('s7', cls=OVSKernelSwitch, protocols='OpenFlow13')
 	s8 = net.addSwitch('s8', cls=OVSKernelSwitch, protocols='OpenFlow13')
 
-	net.addLink('s1','s2')
-	net.addLink('s1','s3')
-	net.addLink('s1','s4')
-	net.addLink('s3','s5')
-	net.addLink('s5','s6')
-	net.addLink('s4','s6')
-	net.addLink('s6','s8')
-	net.addLink('s2','s7')
-	net.addLink('s7','s8')
+	net.addLink('s1','s2',bw=10)
+	net.addLink('s1','s3',bw=10)
+	net.addLink('s1','s4',bw=10)
+	net.addLink('s3','s5',bw=10)
+	net.addLink('s5','s6',bw=10)
+	net.addLink('s4','s6',bw=10)
+	net.addLink('s6','s8',bw=10)
+	net.addLink('s2','s7',bw=10)
+	net.addLink('s7','s8',bw=10)
+
+
 	info( '*** Starting network\n')
 	net.build()
 	info( '*** Starting controllers\n')

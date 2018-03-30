@@ -168,7 +168,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 		if eth.ethertype == ether_types.ETH_TYPE_LLDP:
 			return
 
-		self.logger.info("prisiel paket na switch c. %d, src: %s, dst: %s, in_port: %s", dpid, src, dst, in_port)
+		#self.logger.info("prisiel paket na switch c. %d, src: %s, dst: %s, in_port: %s", dpid, src, dst, in_port)
 
 		t = pkt.get_protocol(ipv4.ipv4)
 
