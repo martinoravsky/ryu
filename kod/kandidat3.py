@@ -134,8 +134,6 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 		got = 0
 
-
-
 		msg = ev.msg
 		datapath = msg.datapath
 		ofproto = datapath.ofproto
@@ -168,7 +166,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 		if eth.ethertype == ether_types.ETH_TYPE_LLDP:
 			return
 
-		#self.logger.info("prisiel paket na switch c. %d, src: %s, dst: %s, in_port: %s", dpid, src, dst, in_port)
+		# self.logger.info("prisiel paket na switch c. %d, src: %s, dst: %s, in_port: %s", dpid, src, dst, in_port)
 
 		t = pkt.get_protocol(ipv4.ipv4)
 
@@ -180,8 +178,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 		# If TCP
 		if ht:
-			#print 'zdrojovy port: ', ht.src_port
-			#print 'destination port: ', ht.dst_port
+			# print 'zdrojovy port: ', ht.src_port
+			# print 'destination port: ', ht.dst_port
 			options = ht.option
 			# Parse TCP options
 			if options and len(options) > 0:
@@ -297,7 +295,6 @@ class SimpleSwitch13(app_manager.RyuApp):
 							if ht.bits == 2:
 								self.logger.info("MP_JOIN SYN")
 
-
 								# Receiver's token. From the MPTCP connection.
 								tokenb = int(hexopt[4:][:8], 16)
 
@@ -407,7 +404,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 									print self.cesty
 
 									for c in self.cesty:
-										if c[0] == srcmac and c[len(c)-1] == dstmac:
+										if c[0] == srcmac and c[len(c) - 1] == dstmac:
 											cesty_connectionu.append(c)
 
 									print "Cesty connectionu: "
@@ -417,14 +414,15 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 									cesta = copy.deepcopy(random.choice(cesty_connectionu))
 									cesta[0] = src
-									cesta[len(cesta)-1] = dst
+									cesta[len(cesta) - 1] = dst
 
 									print cesta
-	
+
 									fullpath = cesta
 									tmppath = cesta[1:-1]
 									for s in tmppath:
-										match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst,
+										match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src,
+																ipv4_dst=t.dst,
 																tcp_src=ht.src_port, tcp_dst=ht.dst_port)
 										next = fullpath[fullpath.index(s) + 1]
 										out_port = self.net[s][next]['port']
@@ -432,7 +430,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 										self.logger.info("Instalujem out_port %d pravidlo do switchu %d", out_port, s)
 										self.add_flow(get_datapath(self, s), 3, match, actions)
 
-										match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.dst, ipv4_dst=t.src,
+										match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.dst,
+																ipv4_dst=t.src,
 																tcp_src=ht.dst_port, tcp_dst=ht.src_port)
 										prev = fullpath[fullpath.index(s) - 1]
 										out_port = self.net[s][prev]['port']
@@ -445,10 +444,10 @@ class SimpleSwitch13(app_manager.RyuApp):
 			self.net.add_edge(dpid, src, port=in_port)
 			self.net.add_edge(src, dpid)
 
-		#if dst in self.net:
+		# if dst in self.net:
 		#	path = nx.shortest_path(self.net, src, dst)
 		#	out_port = self.net[dpid][path[path.index(dpid) + 1]]['port']
-		#else:
+		# else:
 		#	print ("takuto DST nemam, musim floodovat")
 		#	out_port = ofproto.OFPP_FLOOD
 

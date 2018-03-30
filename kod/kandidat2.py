@@ -168,7 +168,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 		if eth.ethertype == ether_types.ETH_TYPE_LLDP:
 			return
 
-		#self.logger.info("prisiel paket na switch c. %d, src: %s, dst: %s, in_port: %s", dpid, src, dst, in_port)
+		self.logger.info("prisiel paket na switch c. %d, src: %s, dst: %s, in_port: %s", dpid, src, dst, in_port)
 
 		t = pkt.get_protocol(ipv4.ipv4)
 
@@ -201,65 +201,9 @@ class SimpleSwitch13(app_manager.RyuApp):
 								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.dst, ipv4_dst=t.src,
 														tcp_flags=0x012)
 								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
-								self.add_flow(datapath, 2, match, actions)
-
-								# Sender's key.
-								keya = hexopt[4:]
-
-								# Sender's token is a SHA1 truncated hash of the key.
-								tokena = int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8], 16)
-
-								# Store IPs, ports, sender's key and sender's token.
-								values = {'tsrc': t.src, 'tdst': t.dst, 'keya': keya, 'tokena': tokena,
-										  'htsrc_port': ht.src_port, 'htdst_port': ht.dst_port, 'src': src, 'dst': dst}
-								query = "replace INTO mptcp.conn (ip_src,ip_dst,keya,tokena,tcp_src,tcp_dst,src,dst) values('{tsrc}','{tdst}','{keya}',{tokena},{htsrc_port},{htdst_port},'{src}','{dst}');"
-								self.executeInsert(query.format(**values))
-
-
-
-							# MP_CAPABLE SYN-ACK
-							elif ht.bits == 18:
-								self.logger.info("MP_CAPABLE SYN-ACK")
-
-								# Vytvorim pravidlo pre ACK v opacnom smere
-								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.dst, ipv4_dst=t.src,
-														tcp_flags=0x010)
-								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
-								self.add_flow(datapath, 2, match, actions)
-
-								# Zmazem pravidlo pre SYN-ACK v tomto smere
-								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst,
-														tcp_flags=0x012)
-								self.del_flow(datapath, match)
-
-								# Receiver's key.
-								keyb = hexopt[4:]
-
-								# Receiver's token is a SHA1 truncated hash of the key.
-								tokenb = int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8], 16)
-
-								# Store receiver's key and receiver's token to the appropriate connection.
-								values = {'tsrc': t.src, 'tdst': t.dst, 'htsrc_port': ht.src_port,
-										  'htdst_port': ht.dst_port, 'keyb': keyb, 'tokenb': tokenb}
-								query = "UPDATE mptcp.conn SET keyb='{keyb}',tokenb={tokenb} WHERE ip_src='{tdst}' AND ip_dst='{tsrc}' AND tcp_src={htdst_port} AND tcp_dst={htsrc_port};"
-								self.executeInsert(query.format(**values))
-
-
-
-							# MP_CAPABLE ACK
-							elif ht.bits == 16:
-								self.logger.info("MP_CAPABLE ACK")
-
-								# Zmazem pravidlo pre ACK v tomto smere
-								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst,
-														tcp_flags=0x010)
-								self.del_flow(datapath, match)
+								self.add_flow(datapath, 4, match, actions)
 
 								tmp = list(nx.all_simple_paths(self.net, src, dst))
-
-								print "vsetky mozne cesty:"
-								for p in tmp:
-									print p
 								tmp = sorted(tmp, key=len)
 
 								for c in tmp:
@@ -271,9 +215,9 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 								path = self.cesty[0]
 
-								got = 1
 								fullpath = path
 								tmppath = path[1:-1]
+
 								for s in tmppath:
 									match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst,
 															tcp_src=ht.src_port, tcp_dst=ht.dst_port)
@@ -291,154 +235,109 @@ class SimpleSwitch13(app_manager.RyuApp):
 									self.logger.info("Instalujem out_port %d pravidlo do switchu %d", out_port, s)
 									self.add_flow(get_datapath(self, s), 3, match, actions)
 
+								return
+
+							# MP_CAPABLE SYN-ACK
+							elif ht.bits == 18:
+								self.logger.info("MP_CAPABLE SYN-ACK")
+
+								# Vytvorim pravidlo pre ACK v opacnom smere
+								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.dst, ipv4_dst=t.src,
+														tcp_flags=0x010)
+								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
+								self.add_flow(datapath, 4, match, actions)
+
+								# Zmazem pravidlo pre SYN-ACK v tomto smere
+								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst,
+														tcp_flags=0x012)
+								self.del_flow(datapath, match)
+
+							# MP_CAPABLE ACK
+							elif ht.bits == 16:
+								self.logger.info("MP_CAPABLE ACK")
+
+								# Zmazem pravidlo pre ACK v tomto smere
+								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst,
+														tcp_flags=0x010)
+								self.del_flow(datapath, match)
+
+
+
 						# MP_JOIN
 						elif subtype == "10" or subtype == "11":
 							# MP_JOIN SYN
 							if ht.bits == 2:
 								self.logger.info("MP_JOIN SYN")
+								cesta = []
+								cesty_connectionu = []
 
-
-								# Receiver's token. From the MPTCP connection.
-								tokenb = int(hexopt[4:][:8], 16)
-
-								# Sender's nonce.
-								noncea = hexopt[12:]
-
-								# Store IPs, ports, sender's nonce into subflow table.
-								values = {'tsrc': t.src, 'tdst': t.dst, 'tokenb': tokenb, 'noncea': noncea,
-										  'htsrc_port': ht.src_port, 'htdst_port': ht.dst_port}
-								query = "replace INTO mptcp.subflow (ip_src,ip_dst,tokenb,noncea,tcp_src,tcp_dst) values('{tsrc}','{tdst}',{tokenb},'{noncea}',{htsrc_port},{htdst_port});"
-								self.executeInsert(query.format(**values))
-
-								# Send B->A traffic to controller
+								# Vytvorim pravidlo pre SYN-ACK na opacnom smere
 								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.dst, ipv4_dst=t.src,
 														tcp_flags=0x012)
 								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
-								self.add_flow(datapath, 2, match, actions)
+								self.add_flow(datapath, 4, match, actions)
+
+								for c in self.cesty:
+									if c[0] == '08:00:27:5f:ab:7f' and c[len(c) - 1] == '08:00:27:72:ae:ed':
+										cesty_connectionu.append(c)
+
+								print "Cesty connectionu: "
+								print cesty_connectionu
+
+								print "Upravena cesta:"
+
+								cesta = copy.deepcopy(random.choice(cesty_connectionu))
+								cesta[0] = src
+								cesta[len(cesta) - 1] = dst
+
+								print cesta
+
+								fullpath = cesta
+								tmppath = cesta[1:-1]
+								for s in tmppath:
+									match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst,
+															tcp_src=ht.src_port, tcp_dst=ht.dst_port)
+									next = fullpath[fullpath.index(s) + 1]
+									out_port = self.net[s][next]['port']
+									actions = [parser.OFPActionOutput(out_port)]
+									self.logger.info("Instalujem out_port %d pravidlo do switchu %d", out_port, s)
+									self.add_flow(get_datapath(self, s), 3, match, actions)
+
+									match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.dst, ipv4_dst=t.src,
+															tcp_src=ht.dst_port, tcp_dst=ht.src_port)
+									prev = fullpath[fullpath.index(s) - 1]
+									out_port = self.net[s][prev]['port']
+									actions = [parser.OFPActionOutput(out_port)]
+									self.logger.info("Instalujem out_port %d pravidlo do switchu %d", out_port, s)
+									self.add_flow(get_datapath(self, s), 3, match, actions)
+
+								return
+
 
 							# MP_JOIN SYN-ACK
 							elif ht.bits == 18:
 								self.logger.info("MP_JOIN SYN-ACK.")
 
-								# Receiver's truncated HASH.
-								trunhash = int(hexopt[4:][:16], 16)
-
-								# Receiver's nonce.
-								nonceb = hexopt[20:]
-
-								# Store truncated HASH and receiver's nonce into appropriate subflow.
-								values = {'tsrc': t.src, 'tdst': t.dst, 'htsrc_port': ht.src_port,
-										  'htdst_port': ht.dst_port, 'trunhash': trunhash, 'nonceb': nonceb}
-								query = "UPDATE mptcp.subflow SET trunhash={trunhash},nonceb='{nonceb}' WHERE ip_src='{tdst}' AND ip_dst='{tsrc}' AND tcp_src={htdst_port} AND tcp_dst={htsrc_port};"
-								self.executeInsert(query.format(**values))
-
-								# Send A->B traffic to controller
+								# Vytvorim pravidlo pre ACK v opacnom smere
 								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.dst, ipv4_dst=t.src,
 														tcp_flags=0x010)
 								actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
-								self.add_flow(datapath, 2, match, actions)
+								self.add_flow(datapath, 4, match, actions)
 
+								# Zmazem pravidlo pre SYN-ACK v tomto smere
 								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst,
 														tcp_flags=0x012)
 								self.del_flow(datapath, match)
+
 
 							# MP_JOIN ACK
 							elif ht.bits == 16:
 								self.logger.info("MP_JOIN ACK.")
 
-								cesta = []
-								cesty_connectionu = []
-
-								# Sender's HASH.
-								hmachash = hexopt[4:]
-
-								# Store sender's HASH to appropriate subflow.
-								values = {'tsrc': t.src, 'tdst': t.dst, 'htsrc_port': ht.src_port,
-										  'htdst_port': ht.dst_port, 'hmachash': hmachash}
-								query = "UPDATE mptcp.subflow SET hash='{hmachash}' WHERE ip_src='{tsrc}' AND ip_dst='{tdst}' AND tcp_src={htsrc_port} AND tcp_dst={htdst_port};"
-								self.executeInsert(query.format(**values))
-
-								# Select keys from appropriate connection based on receiver's token.
-								values = {'tsrc': t.src, 'tdst': t.dst, 'htsrc_port': ht.src_port,
-										  'htdst_port': ht.dst_port}
-								query = "SELECT keya,keyb from conn where tokenb in (SELECT tokenb from subflow where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port});"
-								keys = self.executeSelect(query.format(**values))
-
-								# Select nonces for current subflow.
-								values = {'tsrc': t.src, 'tdst': t.dst, 'htsrc_port': ht.src_port,
-										  'htdst_port': ht.dst_port}
-								query = "SELECT noncea,nonceb from subflow where ip_src='{tsrc}' AND ip_dst='{tdst}' AND tcp_src={htsrc_port} AND tcp_dst={htdst_port};"
-								nonces = self.executeSelect(query.format(**values))
-
-								# Key for generating HMAC is a concatenation of two keys. Message is a concatenation of two nonces.
-								keyhmac = binascii.unhexlify(keys[0] + keys[1])
-								message = binascii.unhexlify(nonces[0] + nonces[1])
-
-								# Generate hash.
-								vysledok = hmac.new(keyhmac, message, hashlib.sha1).hexdigest()
-								print(vysledok)
-
-								# Compare generated HASH to the one from MP_JOIN ACK.
-								if vysledok == hmachash:
-									# Get connection ID based on tokens.
-									values = {'tsrc': t.src, 'tdst': t.dst, 'htsrc_port': ht.src_port,
-											  'htdst_port': ht.dst_port}
-									query = "SELECT id from conn where tokenb in (SELECT tokenb from subflow where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port});"
-									ids = self.executeSelect(query.format(**values))[0]
-
-									# Insert connection ID to a current subflow.
-									values = {'tsrc': t.src, 'tdst': t.dst, 'htsrc_port': ht.src_port,
-											  'htdst_port': ht.dst_port, 'id': ids}
-									query = "update subflow set connid = {id} where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port};"
-									self.executeInsert(query.format(**values))
-
-									query = "select src,dst from conn join subflow on subflow.connid=conn.id where conn.id=(select connid from subflow where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port}) group by src;"
-
-									result = self.executeSelect(query.format(**values))
-									srcmac = result[0]
-									dstmac = result[1]
-									print ('srcmac = %s', srcmac)
-									print ('dstmac = %s', dstmac)
-
-									match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst,
-															tcp_flags=0x010)
-									self.del_flow(datapath, match)
-
-									print self.cesty
-
-									for c in self.cesty:
-										if c[0] == srcmac and c[len(c)-1] == dstmac:
-											cesty_connectionu.append(c)
-
-									print "Cesty connectionu: "
-									print cesty_connectionu
-
-									print "Upravena cesta:"
-
-									cesta = copy.deepcopy(random.choice(cesty_connectionu))
-									cesta[0] = src
-									cesta[len(cesta)-1] = dst
-
-									print cesta
-	
-									fullpath = cesta
-									tmppath = cesta[1:-1]
-									for s in tmppath:
-										match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst,
-																tcp_src=ht.src_port, tcp_dst=ht.dst_port)
-										next = fullpath[fullpath.index(s) + 1]
-										out_port = self.net[s][next]['port']
-										actions = [parser.OFPActionOutput(out_port)]
-										self.logger.info("Instalujem out_port %d pravidlo do switchu %d", out_port, s)
-										self.add_flow(get_datapath(self, s), 3, match, actions)
-
-										match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.dst, ipv4_dst=t.src,
-																tcp_src=ht.dst_port, tcp_dst=ht.src_port)
-										prev = fullpath[fullpath.index(s) - 1]
-										out_port = self.net[s][prev]['port']
-										actions = [parser.OFPActionOutput(out_port)]
-										self.logger.info("Instalujem out_port %d pravidlo do switchu %d", out_port, s)
-										self.add_flow(get_datapath(self, s), 3, match, actions)
+								# Zmazem pravidlo pre ACK v tomto smere
+								match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=t.src, ipv4_dst=t.dst,
+														tcp_flags=0x010)
+								self.del_flow(datapath, match)
 
 		if src not in self.net:
 			self.net.add_node(src)
