@@ -13,7 +13,8 @@ from subprocess import call
 
 def myNetwork():
 
-	net = Mininet( topo=None, build=False, link=TCLink)
+	net = Mininet( topo=None,
+				   build=False)
 
 	info( '*** Adding controller\n' )
 	c0=net.addController(name='c0',
@@ -26,25 +27,11 @@ def myNetwork():
 	s1 = net.addSwitch('s1', cls=OVSKernelSwitch, protocols='OpenFlow13')
 	s2 = net.addSwitch('s2', cls=OVSKernelSwitch, protocols='OpenFlow13')
 	s3 = net.addSwitch('s3', cls=OVSKernelSwitch, protocols='OpenFlow13')
-	s4 = net.addSwitch('s4', cls=OVSKernelSwitch, protocols='OpenFlow13')
-	s5 = net.addSwitch('s5', cls=OVSKernelSwitch, protocols='OpenFlow13')
-	s6 = net.addSwitch('s6', cls=OVSKernelSwitch, protocols='OpenFlow13')
-	s7 = net.addSwitch('s7', cls=OVSKernelSwitch, protocols='OpenFlow13')
-	s8 = net.addSwitch('s8', cls=OVSKernelSwitch, protocols='OpenFlow13')
-	s9 = net.addSwitch('s9', cls=OVSKernelSwitch, protocols='OpenFlow13')
-	s10 = net.addSwitch('s10', cls=OVSKernelSwitch, protocols='OpenFlow13')
-	net.addLink('s1', 's2', bw=10)
-	net.addLink('s2', 's3', bw=10)
-	net.addLink('s1', 's4', bw=10)
-	net.addLink('s3', 's10', bw=10)
-	net.addLink('s4', 's5', bw=10)
-	net.addLink('s5', 's3', bw=10)
-	net.addLink('s1', 's6', bw=10)
-	net.addLink('s6', 's3', bw=10)
-	net.addLink('s1', 's7', bw=10)
-	net.addLink('s7', 's8', bw=10)
-	net.addLink('s8', 's9', bw=10)
-	net.addLink('s9', 's10', bw=10)
+
+	net.addLink('s1', 's2')
+	net.addLink('s1', 's3')
+	net.addLink('s2', 's3')
+
 
 	info( '*** Starting network\n')
 	net.build()
@@ -56,13 +43,6 @@ def myNetwork():
 	net.get('s1').start([c0])
 	net.get('s2').start([c0])
 	net.get('s3').start([c0])
-	net.get('s4').start([c0])
-	net.get('s5').start([c0])
-	net.get('s6').start([c0])
-	net.get('s7').start([c0])
-	net.get('s8').start([c0])
-	net.get('s9').start([c0])
-	net.get('s10').start([c0])
 
 
 	info( '*** Post configure switches and hosts\n')

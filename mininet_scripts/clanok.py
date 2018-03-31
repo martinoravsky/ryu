@@ -16,11 +16,7 @@ def myNetwork():
 	net = Mininet( topo=None, build=False, link=TCLink)
 
 	info( '*** Adding controller\n' )
-	c0=net.addController(name='c0',
-					  controller=RemoteController,
-					  protocol='tcp',
-			  ip='127.0.0.1',
-					  port=6633)
+	c0=net.addController(name='c0', controller=RemoteController, protocol='tcp', ip='127.0.0.1', port=6633)
 
 	info( '*** Add switches\n')
 	s1 = net.addSwitch('s1', cls=OVSKernelSwitch, protocols='OpenFlow13')
@@ -33,18 +29,21 @@ def myNetwork():
 	s8 = net.addSwitch('s8', cls=OVSKernelSwitch, protocols='OpenFlow13')
 	s9 = net.addSwitch('s9', cls=OVSKernelSwitch, protocols='OpenFlow13')
 	s10 = net.addSwitch('s10', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s11 = net.addSwitch('s11', cls=OVSKernelSwitch, protocols='OpenFlow13')
 	net.addLink('s1', 's2', bw=10)
-	net.addLink('s2', 's3', bw=10)
-	net.addLink('s1', 's4', bw=10)
-	net.addLink('s3', 's10', bw=10)
+	net.addLink('s1', 's3', bw=10)
+	net.addLink('s3', 's4', bw=10)
+	net.addLink('s2', 's5', bw=10)
 	net.addLink('s4', 's5', bw=10)
-	net.addLink('s5', 's3', bw=10)
-	net.addLink('s1', 's6', bw=10)
-	net.addLink('s6', 's3', bw=10)
-	net.addLink('s1', 's7', bw=10)
+	net.addLink('s3', 's7', bw=10)
+	net.addLink('s4', 's8', bw=10)
 	net.addLink('s7', 's8', bw=10)
+	net.addLink('s6', 's7', bw=10)
 	net.addLink('s8', 's9', bw=10)
-	net.addLink('s9', 's10', bw=10)
+	net.addLink('s9', 's11', bw=10)
+	net.addLink('s6', 's9', bw=10)
+	net.addLink('s6', 's10', bw=10)
+	net.addLink('s10', 's9', bw=10)
 
 	info( '*** Starting network\n')
 	net.build()
@@ -63,6 +62,7 @@ def myNetwork():
 	net.get('s8').start([c0])
 	net.get('s9').start([c0])
 	net.get('s10').start([c0])
+	net.get('s11').start([c0])
 
 
 	info( '*** Post configure switches and hosts\n')
@@ -70,14 +70,14 @@ def myNetwork():
 	info( '*** Add interfaces to switch ***' )
 	
 	_intf = Intf( 'eth0', node=s1 )
-	_intf = Intf( 'eth1', node=s1 )
-	_intf = Intf( 'eth2', node=s3 )
-	_intf = Intf( 'eth3', node=s3 )
+	_intf = Intf( 'eth1', node=s6 )
+	_intf = Intf( 'eth2', node=s5 )
+	_intf = Intf( 'eth3', node=s11 )
 
 	call(['ovs-vsctl','add-port','s1','eth0'])
-	call(['ovs-vsctl','add-port','s1','eth1'])
-	call(['ovs-vsctl','add-port','s3','eth2'])
-	call(['ovs-vsctl','add-port','s3','eth3'])
+	call(['ovs-vsctl','add-port','s6','eth1'])
+	call(['ovs-vsctl','add-port','s5','eth2'])
+	call(['ovs-vsctl','add-port','s11','eth3'])
 	CLI(net)
 	net.stop()
 

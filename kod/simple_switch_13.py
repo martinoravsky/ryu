@@ -87,7 +87,6 @@ class SimpleSwitch13(app_manager.RyuApp):
 		dpid = datapath.id
 		self.mac_to_port.setdefault(dpid, {})
 
-
 		arp_packet = pkt.get_protocol(arp.arp)
 
 		if arp_packet and dst == mac.BROADCAST_STR:

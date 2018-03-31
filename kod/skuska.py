@@ -4,67 +4,58 @@ from ryu.topology.api import get_switch, get_link
 import random
 from itertools import islice
 
-def k_shortest_paths(pici, source, target, k):
-	return list(islice(nx.shortest_simple_paths(pici,source,target),k))
-
-
 net = nx.DiGraph()
-nodes = [1,2,3,'A','B', 'C', 'D']
+nodes = [1,2,3,4,5,6,7,8,9,10,11,'A','B','C','D']
 net.add_nodes_from(nodes)
 
+edges = [[1,2],[2,5],[1,3],[3,4],[4,5],[3,7],[7,8],[4,8],[6,7],[8,9],[6,9],[6,10],[10,9],[9,11],['A',1],['B',6],[5,'C'],[11,'D']]
+edges2 = [[2,1],[5,2],[3,1],[4,3],[5,4],[7,3],[8,7],[8,4],[7,6],[9,8],[9,6],[10,6],[9,10],[11,9],[1,'A'],[6,'B'],['C',5],['D',11]]
 
-edges = [[1,'A'],[2,'B'],[6,'C'],[8,'D'],['A',1],['B',2],['C',6],['D',8],[1,2],[2,1],[1,3],[3,1],[3,5],[5,3],[1,4],[4,1],[4,6],[6,4],[5,6],[6,5],[6,8],[8,6],[2,7],[7,2],[7,8],[8,7]]
 
 net.add_edges_from(edges)
+net.add_edges_from(edges2)
+
+print net.nodes
+print net.edges
+
+import copy
+
+def aredisjoint(path1, path2, m, n):
+	tmp1 = copy.deepcopy(path1)
+	tmp2 = copy.deepcopy(path2)
+	tmp1.sort()
+	tmp2.sort()
+	i = 0
+	j = 0
+	while i < m and j < n:
+		if tmp1[i] < tmp2[j]:
+			i += 1
+		elif tmp1[j] < tmp2[i]:
+			j += 1
+		else:  # if set1[i] == set2[j]
+			return False
+	return True
+
+
+path1 = nx.shortest_path(net,'A','C')
+print path1
+
+
+
+paths2 = nx.all_simple_paths(net,'B','D')
+
+
+
+for path2 in paths2:
+	m = len(path1)
+	n = len(path2)
+	if aredisjoint(path1,path2,m,n):
+		print "yes"
+	else:
+		print "no"
+	print path1
+	print path2
 
 
 
 
-
-#print type(cesty)
-
-# connpaths = {}
-#
-# print connpaths
-#
-# for c in cesty:
-# 	if str(c) not in connpaths:
-# 		connpaths[str(c)]=0
-#
-# print connpaths
-#
-#
-# kratka = nx.shortest_path(net,'B','C')
-# connpaths[str(kratka)] +=1
-#
-#
-# print connpaths
-#
-#
-# connpaths = sorted(connpaths.items(),key=lambda kv: (len(kv[0]),kv[1]))
-#
-#
-# #connpaths = sorted(connpaths,key= lambda x: (len(x['path']), x['path']))
-#
-# print connpaths[1][0]
-#
-
-cesty = []
-
-paths = nx.shortest_simple_paths(net,'A','C')
-
-for p in paths:
-	cesty.append(p)
-
-#print cesty
-
-cesty = cesty[1:]
-
-#print cesty
-
-for jozko in cesty:
-	print len(jozko)
-	print jozko[len(jozko[0])-1]
-	if 'A' in jozko[0] and 'C' in jozko[len(jozko)-1]:
-	#if 'A' in jozko[1][0] and 'C' in jozko[1][len(jozko[1])]:
-		print "mam"
