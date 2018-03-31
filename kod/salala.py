@@ -40,12 +40,23 @@ class SimpleSwitch13(app_manager.RyuApp):
 		self.mpjsa = []
 		self.mpja = []
 
+	def store_path(self, path,count):
+		pathstr = " ".join(str(x) for x in path)
+		values = {'nodes': pathstr,'count': count}
+		query = "INSERT into mptcp.path (nodes,count) values('{nodes}',{count});"
+		return self.execute_insert(query.format(**values))
 
-	def execute_insert(self, query):
+	def remove_path(self, path, conn_id):
+		pathstr = " ".join(str(x) for x in path)
+		values = {'nodes': pathstr, 'conn_id':conn_id}
+		query = "delete from path where '');"
+
+	def execute_delete(self, query):
 		"""
-		Connect to MySQL database and execute INSERT
+		Connect to MySQL database and execute DELETE
 
 		"""
+		last_id = 0
 		try:
 			conn = connect()
 			if conn.is_connected():
@@ -57,6 +68,25 @@ class SimpleSwitch13(app_manager.RyuApp):
 			conn.commit()
 			conn.close()
 
+	def execute_insert(self, query):
+		"""
+		Connect to MySQL database and execute INSERT
+
+		"""
+		last_id = 0
+		try:
+			conn = connect()
+			if conn.is_connected():
+				cursor = conn.cursor()
+				cursor.execute(query)
+				last_id = cursor.lastrowid
+		except Error as e:
+			print(e)
+		finally:
+			conn.commit()
+			conn.close()
+		return last_id
+
 	def execute_select(self, query):
 		"""
 		Connect to MySQL Database and execute SELECT
@@ -67,7 +97,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 			if conn.is_connected():
 				cursor = conn.cursor()
 				cursor.execute(query)
-				result = cursor.fetchone()
+				result = cursor.fetchall()
 				return result
 		except Error as e:
 			print(e)
@@ -228,15 +258,32 @@ class SimpleSwitch13(app_manager.RyuApp):
 			self.del_flow(datapath, match)
 
 			tmp = list(nx.all_simple_paths(self.net, src, dst))
-			tmp = sorted(tmp, key=len)
 
-			print "All available paths:"
-			for c in tmp:
-				if c not in self.cesty:
-					self.cesty.append(c)
-					print c
+			print tmp
+			# Store available paths and retreat their IDs
+			ids = []
+			for index, item in enumerate(tmp):
+				if index == 0:
+					ids.append(self.store_path(item,1))
+				else:
+					ids.append(self.store_path(item,0))
 
-			path = self.cesty[0]
+			print tmp
+
+			# Get connection id:
+			values = {'tsrc': ip.src, 'tdst': ip.dst, 'htsrc_port': tcp_pkt.src_port,
+					  'htdst_port': tcp_pkt.dst_port}
+			query = "SELECT id from mptcp.conn where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port};"
+			conn_id = self.execute_select(query.format(**values))[0][0]
+
+			# Add entries to junction table.
+			for path_id in ids:
+				values = {'conn_id': conn_id, 'path_id': path_id}
+				query = "INSERT into conn_path (conn_id, path_id) values ({conn_id},{path_id})"
+				self.execute_insert(query.format(**values))
+
+			# Sort paths by their length
+			path = sorted(tmp, key=len)[0]
 
 			self.install_path(datapath, tcp_pkt, ip, path)
 		else:
@@ -305,11 +352,6 @@ class SimpleSwitch13(app_manager.RyuApp):
 		if four_tuple not in self.mpja:
 			print "MP_JOIN ACK"
 			self.mpja.append(four_tuple)
-			ofproto = datapath.ofproto
-			parser = datapath.ofproto_parser
-
-			cesta = []
-			cesty_connectionu = []
 
 			# Sender's HASH.
 			hmachash = hexopt[4:]
@@ -333,8 +375,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 			nonces = self.execute_select(query.format(**values))
 
 			# Key for generating HMAC is a concatenation of two keys. Message is a concatenation of two nonces.
-			keyhmac = binascii.unhexlify(keys[0] + keys[1])
-			message = binascii.unhexlify(nonces[0] + nonces[1])
+			keyhmac = binascii.unhexlify(keys[0][0] + keys[0][1])
+			message = binascii.unhexlify(nonces[0][0] + nonces[0][1])
 
 			# Generate hash.
 			vysledok = hmac.new(keyhmac, message, hashlib.sha1).hexdigest()
@@ -345,36 +387,44 @@ class SimpleSwitch13(app_manager.RyuApp):
 				values = {'tsrc': ip.src, 'tdst': ip.dst, 'htsrc_port': tcp_pkt.src_port,
 						  'htdst_port': tcp_pkt.dst_port}
 				query = "SELECT id from conn where tokenb in (SELECT tokenb from subflow where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port});"
-				ids = self.execute_select(query.format(**values))[0]
+				conn_id = self.execute_select(query.format(**values))[0][0]
 
 				# Insert connection ID to a current subflow.
-				values = {'tsrc': ip.src, 'tdst': ip.dst, 'htsrc_port': tcp_pkt.src_port,
-						  'htdst_port': tcp_pkt.dst_port, 'id': ids}
+				values = {'tsrc': ip.src, 'tdst': ip.dst, 'htsrc_port': tcp_pkt.src_port, 'htdst_port': tcp_pkt.dst_port, 'id': conn_id}
 				query = "update subflow set connid = {id} where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port};"
 				self.execute_insert(query.format(**values))
 
+				# Get src and dst mac of appropriate connection.
 				query = "select src,dst from conn join subflow on subflow.connid=conn.id where conn.id=(select connid from subflow where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port}) group by src;"
-
 				result = self.execute_select(query.format(**values))
-				srcmac = result[0]
-				dstmac = result[1]
+				srcmac = result[0][0]
+				dstmac = result[0][1]
+				print srcmac
+				print dstmac
 
-				match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=ip.src, ipv4_dst=ip.dst,
-										tcp_flags=0x010)
-				self.del_flow(datapath, match)
+				# Find least used path and also the shortest.
+				values = {'conn_id': conn_id}
+				query = "select path_id, count, c.id, p.nodes from conn c inner join conn_path cp on c.id = cp.conn_id inner join path p on p.id = cp.path_id where c.id = {conn_id} order by count asc;"
+				print "Hladanie najmenej pouzitej a zaroven najkratsej cesty!"
+				cesty = self.execute_select(query.format(**values))
 
-				for c in self.cesty:
-					if c[0] == srcmac and c[len(c) - 1] == dstmac:
-						cesty_connectionu.append(c)
+				print cesty
+				path_id = cesty[0][0]
+				final_path = cesty[0][3].split(' ')
 
-				print "Upravena cesta:"
-				cesta = copy.deepcopy(random.choice(cesty_connectionu))
-				cesta[0] = src
-				cesta[len(cesta) - 1] = dst
+				# Update count for chosen path.
+				values = {'path_id':path_id}
+				query = "update path set count = count + 1 where id = {path_id}"
+				self.execute_insert(query.format(**values))
 
-				print cesta
+				# Parse paths, change MAC addresses
+				to_use = copy.deepcopy(final_path)[1:-1]
+				to_use = [int(x) for x in to_use]
+				to_use.insert(0,src)
+				to_use.insert(len(to_use), dst)
+				print to_use
 
-				self.install_path(datapath, tcp_pkt, ip, cesta)
+				self.install_path(datapath, tcp_pkt, ip, to_use)
 		else:
 			print "Already processed MP_JOIN ACK"
 
@@ -515,5 +565,3 @@ class SimpleSwitch13(app_manager.RyuApp):
 		links = [(link.dst.dpid, link.src.dpid, {'port': link.dst.port_no}) for link in links_list]
 		self.net.add_edges_from(links)
 
-		#print ("******** List of links")
-		#print(self.net.edges())
