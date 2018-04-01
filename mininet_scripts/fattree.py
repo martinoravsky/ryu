@@ -1,72 +1,125 @@
-"""FatTree topology by Howar31
-Configurable K-ary FatTree topology
-Only edit K should work
-OVS Bridge with Spanning Tree Protocol
-Note: STP bridges don't start forwarding until
-after STP has converged, which can take a while!
-See below for a command to wait until STP is up.
-sudo mn --custom ~/mininet/custom/topo-fat-tree.py --topo fattree --switch ovs-stp
-mininet> sh time bash -c 'while ! ovs-ofctl show es_0_0 | grep FORWARD; do sleep 1; done'
-Pass '--topo=fattree' from the command line
-"""
+#!/usr/bin/python
 
-from mininet.topo import Topo
-from mininet.node import OVSSwitch
- 
-class OVSBridgeSTP( OVSSwitch ):
-    """Open vSwitch Ethernet bridge with Spanning Tree Protocol
-       rooted at the first bridge that is created"""
-    prio = 1000
-    def start( self, *args, **kwargs ):
-        OVSSwitch.start( self, *args, **kwargs )
-        OVSBridgeSTP.prio += 1
-        self.cmd( 'ovs-vsctl set-fail-mode', self, 'standalone' )
-        self.cmd( 'ovs-vsctl set-controller', self )
-        self.cmd( 'ovs-vsctl set Bridge', self,
-                  'stp_enable=true',
-                  'other_config:stp-priority=%d' % OVSBridgeSTP.prio )
- 
-switches = { 'ovs-stp': OVSBridgeSTP }
+from subprocess import call
+from mininet.net import Mininet
+from mininet.node import Controller, RemoteController, OVSController
+from mininet.node import CPULimitedHost, Host, Node
+from mininet.node import OVSKernelSwitch, UserSwitch
+from mininet.node import IVSSwitch
+from mininet.cli import CLI
+from mininet.log import setLogLevel, info
+from mininet.link import TCLink, Intf
+from subprocess import call
 
-class FatTree( Topo ):
+def myNetwork():
+	net = Mininet(topo=None, build=False, link=TCLink)
 
-    def __init__( self ):
+	info('*** Adding controller\n')
+	c0 = net.addController(name='c0',
+						   controller=RemoteController,
+						   protocol='tcp',
+						   ip='127.0.0.1',
+						   port=6633)
 
-        # Topology settings
-        K = 4                           # K-ary FatTree
-        podNum = K                      # Pod number in FatTree
-        coreSwitchNum = pow((K/2),2)    # Core switches 
-        aggrSwitchNum = ((K/2)*K)       # Aggregation switches
-        edgeSwitchNum = ((K/2)*K)       # Edge switches
-        hostNum = (K*pow((K/2),2))      # Hosts in K-ary FatTree
+	info('*** Add switches\n')
 
-        # Initialize topology
-        Topo.__init__( self )
+	s1 = net.addSwitch('s1', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s2 = net.addSwitch('s2', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s3 = net.addSwitch('s3', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s4 = net.addSwitch('s4', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s5 = net.addSwitch('s5', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s6 = net.addSwitch('s6', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s7 = net.addSwitch('s7', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s8 = net.addSwitch('s8', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s9 = net.addSwitch('s9', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s10 = net.addSwitch('s10', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s11 = net.addSwitch('s11', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s12 = net.addSwitch('s12', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s13 = net.addSwitch('s13', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s14 = net.addSwitch('s14', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s16 = net.addSwitch('s16', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s17 = net.addSwitch('s17', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s18 = net.addSwitch('s18', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s19 = net.addSwitch('s19', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s20 = net.addSwitch('s20', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	s21 = net.addSwitch('s21', cls=OVSKernelSwitch, protocols='OpenFlow13')
+	net.addLink(s1, s2, bw=10)
+	net.addLink(s2, s3, bw=10)
+	net.addLink(s3, s4, bw=10)
+	net.addLink(s4, s1, bw=10)
+	net.addLink(s5, s6, bw=10)
+	net.addLink(s6, s7, bw=10)
+	net.addLink(s5, s8, bw=10)
+	net.addLink(s8, s7, bw=10)
+	net.addLink(s9, s10, bw=10)
+	net.addLink(s10, s11, bw=10)
+	net.addLink(s9, s12, bw=10)
+	net.addLink(s12, s11, bw=10)
+	net.addLink(s13, s14, bw=10)
+	net.addLink(s16, s13, bw=10)
+	net.addLink(s1, s17, bw=10)
+	net.addLink(s20, s3, bw=10)
+	net.addLink(s5, s18, bw=10)
+	net.addLink(s7, s20, bw=10)
+	net.addLink(s9, s19, bw=10)
+	net.addLink(s9, s20, bw=10)
+	net.addLink(s13, s20, bw=10)
+	net.addLink(s5, s19, bw=10)
+	net.addLink(s21, s14, bw=10)
+	net.addLink(s21, s16, bw=10)
+	net.addLink(s3, s19, bw=10)
+	net.addLink(s11, s18, bw=10)
+	net.addLink(s1, s18, bw=10)
+	net.addLink(s7, s17, bw=10)
+	net.addLink(s11, s17, bw=10)
+	net.addLink(s13, s17, bw=10)
+	net.addLink(s21, s18, bw=10)
+	net.addLink(s21, s19, bw=10)
 
-        coreSwitches = []
-        aggrSwitches = []
-        edgeSwitches = []
+	info('*** Starting network\n')
+	net.build()
+	info('*** Starting controllers\n')
+	for controller in net.controllers:
+		controller.start()
 
-        # Core
-        for core in range(0, coreSwitchNum):
-            coreSwitches.append(self.addSwitch("cs_"+str(core)))
-        # Pod
-        for pod in range(0, podNum):
-        # Aggregate
-            for aggr in range(0, aggrSwitchNum/podNum):
-                aggrThis = self.addSwitch("as_"+str(pod)+"_"+str(aggr))
-                aggrSwitches.append(aggrThis)
-                for x in range((K/2)*aggr, (K/2)*(aggr+1)):
-#                    self.addLink(aggrSwitches[aggr+(aggrSwitchNum/podNum*pod)], coreSwitches[x])
-                    self.addLink(aggrThis, coreSwitches[x])
-        # Edge
-            for edge in range(0, edgeSwitchNum/podNum):
-                edgeThis = self.addSwitch("es_"+str(pod)+"_"+str(edge))
-                edgeSwitches.append(edgeThis)
-                for x in range((edgeSwitchNum/podNum)*pod, ((edgeSwitchNum/podNum)*(pod+1))):
-                    self.addLink(edgeThis, aggrSwitches[x])
-        # Host
-                for x in range(0, (hostNum/podNum/(edgeSwitchNum/podNum))):
-                    self.addLink(edgeThis, self.addHost("h_"+str(pod)+"_"+str(edge)+"_"+str(x)))
+	info('*** Starting switches\n')
+	net.get('s12').start([c0])
+	net.get('s21').start([c0])
+	net.get('s20').start([c0])
+	net.get('s14').start([c0])
+	net.get('s16').start([c0])
+	net.get('s11').start([c0])
+	net.get('s9').start([c0])
+	net.get('s5').start([c0])
+	net.get('s13').start([c0])
+	net.get('s7').start([c0])
+	net.get('s17').start([c0])
+	net.get('s6').start([c0])
+	net.get('s18').start([c0])
+	net.get('s3').start([c0])
+	net.get('s2').start([c0])
+	net.get('s8').start([c0])
+	net.get('s4').start([c0])
+	net.get('s1').start([c0])
+	net.get('s10').start([c0])
+	net.get('s19').start([c0])
 
-topos = { 'fattree': ( lambda: FatTree() ) }
+	info('*** Post configure switches and hosts\n')
+
+	info('*** Add interfaces to switch ***')
+
+	_intf = Intf('eth0', node=s2)
+	_intf = Intf('eth1', node=s4)
+	_intf = Intf('eth2', node=s14)
+	_intf = Intf('eth3', node=s16)
+
+	call(['ovs-vsctl', 'add-port', 's2', 'eth0'])
+	call(['ovs-vsctl', 'add-port', 's4', 'eth1'])
+	call(['ovs-vsctl', 'add-port', 's14', 'eth2'])
+	call(['ovs-vsctl', 'add-port', 's16', 'eth3'])
+	CLI(net)
+	net.stop()
+
+if __name__ == '__main__':
+	setLogLevel('info')
+	myNetwork()

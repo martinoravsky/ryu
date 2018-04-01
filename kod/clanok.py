@@ -106,14 +106,43 @@ class SimpleSwitch13(app_manager.RyuApp):
 			conn.commit()
 			conn.close()
 
-	def are_disjoint(self,p,cesty):
+	def are_node_disjoint(self,p,cesty):
 		for cesta in cesty:
 			tmp1 = copy.deepcopy(cesta)
 			tmp2 = copy.deepcopy(p)
-			#print "Porovnavam ", set(tmp1), "s ", tmp2
+			tmp1 = tmp1[1:-1]
+			tmp2 = tmp2[1:-1]
+
 			if set(tmp1).isdisjoint(tmp2):
-				#print "Su disjoint"
-				return tmp1
+				print "Path ", cesta, "is node-disjoint with", p
+				return p
+		return 0
+
+	def are_edge_disjoint(self, p, cesty):
+		for cesta in cesty:
+			tmp1 = copy.deepcopy(cesta)
+			tmp2 = copy.deepcopy(p)
+			tmp1 = tmp1[1:-1]
+			tmp2 = tmp2[1:-1]
+
+			revedges1 = []
+			revedges2 = []
+
+			rev1 = copy.deepcopy(tmp1[::-1])
+			rev2 = copy.deepcopy(tmp2[::-1])
+
+			edges1 = zip(tmp1, tmp1[1:])
+			edges2 = zip(tmp2, tmp2[1:])
+
+			revedges1 = zip(rev1, rev1[1:])
+			revedges2 = zip(rev2, rev2[1:])
+
+			edges1 = edges1 + revedges1
+			edges2 = edges2 + revedges2
+
+			if set(edges1).isdisjoint(edges2):
+				print "Path ", cesta, "is edge-disjoint with", p
+				return p
 		return 0
 
 
@@ -270,11 +299,17 @@ class SimpleSwitch13(app_manager.RyuApp):
 									tcp_flags=0x010)
 			self.del_flow(datapath, match)
 
-			tmp = list(nx.all_simple_paths(self.net, src, dst))
+			tmp = nx.shortest_path(self.net, src, dst)
 
-			path = sorted(tmp, key=len)[0]
+			print tmp
+			# Store available paths and retreat their IDs
+			idcko = self.store_path(tmp, 1)
 
-			idcko = self.store_path(path,1)
+			# for index, item in enumerate(tmp):
+			# 	if index == 0:
+			# 		ids.append(self.store_path(item, 1))
+			# 	else:
+			# 		ids.append(self.store_path(item, 0))
 
 			# Get connection id:
 			values = {'tsrc': ip.src, 'tdst': ip.dst, 'htsrc_port': tcp_pkt.src_port,
@@ -283,12 +318,15 @@ class SimpleSwitch13(app_manager.RyuApp):
 			conn_id = self.execute_select(query.format(**values))[0][0]
 
 			# Add entries to junction table.
+			#for path_id in ids:
 
 			values = {'conn_id': conn_id, 'path_id': idcko}
 			query = "INSERT into conn_path (conn_id, path_id) values ({conn_id},{path_id})"
 			self.execute_insert(query.format(**values))
 
-			self.install_path(datapath, tcp_pkt, ip, path)
+			# Sort paths by their length
+			#path = sorted(tmp, key=len)[0]
+			self.install_path(datapath, tcp_pkt, ip, tmp)
 		else:
 			print "Already processed MP_CAPABLE ACK"
 
@@ -405,61 +443,181 @@ class SimpleSwitch13(app_manager.RyuApp):
 				result = self.execute_select(query.format(**values))
 				srcmac = result[0][0]
 				dstmac = result[0][1]
-				#print srcmac
-				#print dstmac
 
+				# All paths for current subflow
 				paths = sorted(list(nx.all_simple_paths(self.net, src, dst)),key=len)
 
+				#print "All paths for current subflow:"
+				#for p in paths:
+				#	print p
+
+				print "Connection ID: ", conn_id
 				# Find paths of the connection.
 				values = {'conn_id': conn_id}
-				query = "select p.nodes from conn c inner join conn_path cp on c.id = cp.conn_id inner join path p on p.id = cp.path_id where c.id = {conn_id}"
-				#print "Cesty pouzite v connectione!"
-
+				query = "select path_id, count, c.id, p.nodes from conn c inner join conn_path cp on c.id = cp.conn_id inner join path p on p.id = cp.path_id where c.id = {conn_id};"
+				print query.format(**values)
 				cesty = self.execute_select(query.format(**values))
-				#print cesty
 
-				newcesty = []
+				print "Cesty connectionu nesparsovane: ", cesty
+				connection_paths = []
 
 				for akt in cesty:
 					cesticka = copy.deepcopy(akt)
-					#print cesticka
-					cesticka = cesticka[0]
-					#print cesticka
+					cesticka = cesticka[3]
 					cesticka = cesticka.split(' ')
-					#print cesticka
+					tmp_src = cesticka[0]
+					tmp_dst = cesticka[len(cesticka)-1]
 					cesticka = cesticka[1:-1]
-					#print cesticka
 					cesticka = [int(x) for x in cesticka]
-					#print cesticka
-					newcesty.append(cesticka)
+					cesticka.insert(0,tmp_src)
+					cesticka.append(tmp_dst)
+					connection_paths.append(cesticka)
 
-				#print newcesty
+				print "Cesty connectionu sparsovane: ", connection_paths
 
-				for p in paths:
-					path = copy.deepcopy(self.are_disjoint(p,newcesty))
-					if path != 0:
+				node_disjoint_test = copy.deepcopy(paths)
+				edge_disjoint_test = copy.deepcopy(paths)
+				chosen_path = 0
+
+				for p in node_disjoint_test:
+					node_disjoint_path = copy.deepcopy(self.are_node_disjoint(p, connection_paths))
+					if node_disjoint_path != 0:
+						print "Found node-disjoint path."
+						chosen_path = node_disjoint_path
+						path_id = self.store_path(chosen_path, 1)
+						values = {'conn_id': conn_id, 'path_id': path_id}
+						query = "INSERT into conn_path (conn_id, path_id) values ({conn_id},{path_id})"
+						self.execute_insert(query.format(**values))
 						break
 
-				chosen = nx.shortest_path(self.net,src,dst)
-				dodb = copy.deepcopy(chosen)
-				dodb[0] = srcmac
-				dodb[len(dodb)-1] = dstmac
+				print "Chosen path po node_disjoint_teste: ", chosen_path
 
-				#print "Dodb ide tato cesta: "
-				#print dodb
-				idcko = self.store_path(dodb, 1)
+				if chosen_path == 0:
+					print "No node-disjoint paths available. Looking for edge-disjoint paths."
+					for p in edge_disjoint_test:
+						edge_disjoint_path = copy.deepcopy(self.are_edge_disjoint(p, connection_paths))
+						if edge_disjoint_path != 0:
+							print "Found edge-disjoint path."
+							chosen_path = edge_disjoint_path
+							chosen_path[0] = src
+							chosen_path[len(chosen_path)-1] = dst
+							path_id = self.store_path(chosen_path, 1)
+							values = {'conn_id': conn_id, 'path_id': path_id}
+							query = "INSERT into conn_path (conn_id, path_id) values ({conn_id},{path_id})"
+							self.execute_insert(query.format(**values))
+							break
 
-				values = {'conn_id': conn_id, 'path_id': idcko}
-				query = "INSERT into conn_path (conn_id, path_id) values ({conn_id},{path_id})"
-				self.execute_insert(query.format(**values))
+				print "Chosen path po edge_disjoint_teste: ", chosen_path
 
-				self.install_path(datapath, tcp_pkt, ip, chosen)
+				if chosen_path == 0:
+					print "Neither node-disjoint paths or edge-disjoint paths were found. Using least used shortest path of connection."
+
+					chosen_path = nx.shortest_path(self.net,src,dst)
+					path_id = self.store_path(chosen_path, 1)
+					values = {'conn_id': conn_id, 'path_id': path_id}
+					query = "INSERT into conn_path (conn_id, path_id) values ({conn_id},{path_id})"
+					self.execute_insert(query.format(**values))
+				#
+				# 	# Find least used path and also the shortest.
+				# 	values = {'conn_id': conn_id}
+				# 	query = "select path_id, c.id, p.nodes from conn c inner join conn_path cp on c.id = cp.conn_id inner join path p on p.id = cp.path_id where c.id = {conn_id};"
+				# 	print "Hladanie najmenej pouzitej a zaroven najkratsej cesty!"
+				# 	cesty = self.execute_select(query.format(**values))
+				#
+				# 	print cesty
+				# 	path_id = cesty[0][0]
+				# 	final_path = cesty[0][2].split(' ')
+				#
+				# 	# Update count for chosen path.
+				# 	#values = {'path_id': path_id}
+				# 	#query = "update path set count = count + 1 where id = {path_id}"
+				# 	#self.execute_insert(query.format(**values))
+				#
+				# 	# Parse paths, change MAC addresses
+				# 	to_use = copy.deepcopy(final_path)[1:-1]
+				# 	to_use = [int(x) for x in to_use]
+				# 	to_use.insert(0, src)
+				# 	to_use.insert(len(to_use), dst)
+				# 	print to_use
+				#
+				# 	chosen_path = to_use
+
+				print "Chosen path po oboch testoch: ", chosen_path
+
+				self.install_path(datapath, tcp_pkt, ip, chosen_path)
+
+
+				# connection_paths2 = copy.deepcopy(connection_paths)
+				#
+				# chosen_path = 0
+				# for p in paths:
+				# 	node_disjoint_path = copy.deepcopy(self.are_node_disjoint(p, connection_paths))
+				# 	if node_disjoint_path != 0:
+				# 		print "Found node-disjoint path."
+				# 		break
+				#
+				# print "Path after node-disjoint check: ", chosen_path
+				# # No node-disjoint path found. Looking for edge disjoint paths.
+				# if chosen_path == 0:
+				# 	print "No node-disjoint paths available. Looking for edge-disjoint paths."
+				# 	for p in paths:
+				# 		path = copy.deepcopy(self.are_edge_disjoint(p, connection_paths2))
+				# 		if path != 0:
+				# 			print "Found edge-disjoint path."
+				# 			break
+				#
+				# print "Path after edge-disjoint check: ", path
+				#
+				# # No edge-disjoint path found. That means hosts are single-homed. Using algorithm.
+				# if path == 0:
+				# 	print "No edge-disjoint paths available. Hosts are single-homed. Using algorithm."
+				# 	# Find least used path and also the shortest.
+				# 	values = {'conn_id': conn_id}
+				# 	query = "select path_id, count, c.id, p.nodes from conn c inner join conn_path cp on c.id = cp.conn_id inner join path p on p.id = cp.path_id where c.id = {conn_id} order by count asc;"
+				# 	cesty = self.execute_select(query.format(**values))
+				#
+				# 	print cesty
+				# 	path_id = cesty[0][0]
+				# 	final_path = cesty[0][3].split(' ')
+				#
+				# 	# Update count for chosen path.
+				# 	values = {'path_id': path_id}
+				# 	query = "update path set count = count + 1 where id = {path_id}"
+				# 	self.execute_insert(query.format(**values))
+				#
+				# 	# Parse paths, change MAC addresses
+				# 	to_use = copy.deepcopy(final_path)[1:-1]
+				# 	to_use = [int(x) for x in to_use]
+				# 	to_use.insert(0, src)
+				# 	to_use.insert(len(to_use), dst)
+				# 	print "Using least used path from connection."
+				# 	print to_use
+				#
+				# 	self.install_path(datapath, tcp_pkt, ip, to_use)
+				# 	return
+				#
+				# chosen = path
+				# print "Chosen path: ", chosen
+				# #chosen = nx.shortest_path(self.net, src, dst)
+				# dodb = copy.deepcopy(chosen)
+				# dodb[0] = srcmac
+				# dodb[len(dodb)-1] = dstmac
+				#
+				# idcko = self.store_path(dodb, 1)
+				#
+				# values = {'conn_id': conn_id, 'path_id': idcko}
+				# query = "INSERT into conn_path (conn_id, path_id) values ({conn_id},{path_id})"
+				# self.execute_insert(query.format(**values))
+				#
+				# self.install_path(datapath, tcp_pkt, ip, chosen)
+
+
 		else:
 			print "Already processed MP_JOIN ACK"
 
 	def install_path(self, datapath, tcp_pkt, ip, cesta):
 		parser = datapath.ofproto_parser
-		fullpath = cesta
+		fullpath = copy.deepcopy(cesta)
 		tmppath = cesta[1:-1]
 		print "Installing path from", ip.src, "to", ip.dst, "and backwards. Path is: ", fullpath
 		for s in tmppath:
@@ -511,16 +669,10 @@ class SimpleSwitch13(app_manager.RyuApp):
 		#				 datapath.id, src, dst, in_port)
 		ip = pkt.get_protocol(ipv4.ipv4)
 
-		#if ip:
-		#	print 'Source IP address: ', ip.src
-		#	print 'Destination IP address: ', ip.dst
-
 		tcp_pkt = pkt.get_protocol(tcp.tcp)
 
 		# If TCP
 		if tcp_pkt:
-			# print 'zdrojovy port: ', tcp_pkt.src_port
-			# print 'destination port: ', tcp_pkt.dst_port
 			options = tcp_pkt.option
 			# Parse TCP options
 			if options and len(options) > 0:
@@ -592,7 +744,4 @@ class SimpleSwitch13(app_manager.RyuApp):
 		self.net.add_edges_from(links)
 		links = [(link.dst.dpid, link.src.dpid, {'port': link.dst.port_no}) for link in links_list]
 		self.net.add_edges_from(links)
-
-		#print links
-		#print self.net
 

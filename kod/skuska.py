@@ -19,43 +19,22 @@ print net.nodes
 print net.edges
 
 import copy
-
-def aredisjoint(path1, path2, m, n):
-	tmp1 = copy.deepcopy(path1)
-	tmp2 = copy.deepcopy(path2)
-	tmp1.sort()
-	tmp2.sort()
-	i = 0
-	j = 0
-	while i < m and j < n:
-		if tmp1[i] < tmp2[j]:
-			i += 1
-		elif tmp1[j] < tmp2[i]:
-			j += 1
-		else:  # if set1[i] == set2[j]
-			return False
-	return True
-
-
 path1 = nx.shortest_path(net,'A','C')
-print path1
+path_edges = zip(path1,path1[1:])
+path2 = nx.all_simple_paths(net,'B','D')
 
+print path_edges
 
+for p in path2:
+	cesta = p
 
-paths2 = nx.all_simple_paths(net,'B','D')
-
-
-
-for path2 in paths2:
-	m = len(path1)
-	n = len(path2)
-	if aredisjoint(path1,path2,m,n):
-		print "yes"
-	else:
-		print "no"
-	print path1
-	print path2
+path2_edges = zip(cesta,cesta[1:])
 
 
 
 
+print set(path_edges)
+print set(path2_edges)
+
+if set(path_edges).isdisjoint(path2_edges):#
+	print "Su disjoint"
