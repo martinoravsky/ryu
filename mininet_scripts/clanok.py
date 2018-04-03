@@ -45,6 +45,7 @@ def myNetwork():
 	net.addLink('s6', 's10', bw=10)
 	net.addLink('s10', 's9', bw=10)
 
+
 	info( '*** Starting network\n')
 	net.build()
 	info( '*** Starting controllers\n')

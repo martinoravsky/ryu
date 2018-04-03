@@ -2,10 +2,7 @@ import binascii
 import copy
 import hashlib
 import hmac
-import random
 import networkx as nx
-from mysql.connector import Error
-from connection import connect
 from ryu.app.ofctl.api import get_datapath
 from ryu.base import app_manager
 from ryu.controller import ofp_event
@@ -33,77 +30,10 @@ class SimpleSwitch13(app_manager.RyuApp):
 		self.links = {}
 		self.table = {}
 		self.cesty = []
-		self.mpcs = []
-		self.mpcsa = []
-		self.mpca = []
-		self.mpjs = []
-		self.mpjsa = []
-		self.mpja = []
-
-	def store_path(self, path,count):
-		pathstr = " ".join(str(x) for x in path)
-		values = {'nodes': pathstr,'count': count}
-		query = "INSERT into mptcp.path (nodes,count) values('{nodes}',{count});"
-		return self.execute_insert(query.format(**values))
-
-	def remove_path(self, path, conn_id):
-		pathstr = " ".join(str(x) for x in path)
-		values = {'nodes': pathstr, 'conn_id':conn_id}
-		query = "delete from path where '');"
-
-	def execute_delete(self, query):
-		"""
-		Connect to MySQL database and execute DELETE
-
-		"""
-		last_id = 0
-		try:
-			conn = connect()
-			if conn.is_connected():
-				cursor = conn.cursor()
-				cursor.execute(query)
-		except Error as e:
-			print(e)
-		finally:
-			conn.commit()
-			conn.close()
-
-	def execute_insert(self, query):
-		"""
-		Connect to MySQL database and execute INSERT
-
-		"""
-		last_id = 0
-		try:
-			conn = connect()
-			if conn.is_connected():
-				cursor = conn.cursor()
-				cursor.execute(query)
-				last_id = cursor.lastrowid
-		except Error as e:
-			print(e)
-		finally:
-			conn.commit()
-			conn.close()
-		return last_id
-
-	def execute_select(self, query):
-		"""
-		Connect to MySQL Database and execute SELECT
-
-		"""
-		try:
-			conn = connect()
-			if conn.is_connected():
-				cursor = conn.cursor()
-				cursor.execute(query)
-				result = cursor.fetchall()
-				return result
-		except Error as e:
-			print(e)
-		finally:
-			conn.commit()
-			conn.close()
+		self.subflows = {}
+		self.syn = []
+		self.synack = []
+		self.ack = []
 
 	def are_node_disjoint(self,p,cesty):
 		for cesta in cesty:
@@ -143,8 +73,6 @@ class SimpleSwitch13(app_manager.RyuApp):
 				print "Path ", cesta, "is edge-disjoint with", p
 				return p
 		return 0
-
-
 
 	@set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
 	def switch_features_handler(self, ev):
@@ -220,16 +148,28 @@ class SimpleSwitch13(app_manager.RyuApp):
 				self.mac_to_port[datapath.id][src] = in_port
 
 	def mp_capable_syn(self, datapath, tcp_pkt, ip, src, dst, hexopt):
-		four_tuple = (ip.src, ip.dst, tcp_pkt.src_port, tcp_pkt.dst_port)
-		if four_tuple not in self.mpcs:
+		identifier = ip.src + ip.dst + str(tcp_pkt.src_port) + str(tcp_pkt.dst_port)
+
+		if identifier not in self.syn:
 			print "MP_CAPABLE SYN"
 
 			ofproto = datapath.ofproto
 			parser = datapath.ofproto_parser
-			self.mpcs.append(four_tuple)
+
+			paths = []
+
+			self.syn.append(identifier)
 
 			# Sender's token is a SHA1 truncated hash of the key.
-			tokena = int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8], 16)
+			self.subflows[identifier] = {'tokena':
+											int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8], 16),
+											'ip_src': ip.src,
+											'ip_dst': ip.dst,
+											'tp_src': tcp_pkt.src_port,
+											'tp_dst': tcp_pkt.dst_port,
+											'keya': hexopt[4:],
+											'main': True,
+										 	'paths': paths}
 
 			# Vytvorim pravidlo pre SYN-ACK na opacnom smere
 			match = parser.OFPMatch(eth_type=0x0800,
@@ -242,28 +182,16 @@ class SimpleSwitch13(app_manager.RyuApp):
 			actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
 			self.add_flow(datapath, 2, match, actions)
 
-			# Sender's key.
-			keya = hexopt[4:]
-
-			# Store IPs, ports, sender's key and sender's token.
-			values = {'tsrc': ip.src, 'tdst': ip.dst, 'keya': keya, 'tokena': tokena,
-					  'htsrc_port': tcp_pkt.src_port, 'htdst_port': tcp_pkt.dst_port, 'src': src, 'dst': dst}
-			query = "replace INTO mptcp.conn \
-							(ip_src,ip_dst,keya,tokena,tcp_src,tcp_dst,src,dst) \
-							values('{tsrc}','{tdst}','{keya}',{tokena},{htsrc_port},{htdst_port},'{src}','{dst}');"
-			self.execute_insert(query.format(**values))
-		else:
-			pass
-			print "Already processed MP_CAPABLE SYN"
-
 	def mp_capable_syn_ack(self, datapath, tcp_pkt, ip, src, dst, hexopt):
-		# Receiver's token is a SHA1 truncated hash of the key.
-		four_tuple = (ip.src, ip.dst, tcp_pkt.src_port, tcp_pkt.dst_port)
-		if four_tuple not in self.mpcsa:
-			#del self.pending_synack[self.pending_synack.index((ip.dst,ip.src,tcp_pkt.dst_port,tcp_pkt.src_port))]
+		identifier = ip.dst + ip.src + str(tcp_pkt.dst_port) + str(tcp_pkt.src_port)
+
+		if identifier not in self.synack:
 			print "MP_CAPABLE SYN-ACK"
-			self.mpcsa.append(four_tuple)
-			tokenb = int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8], 16)
+
+			self.synack.append(identifier)
+
+			self.subflows[identifier]['tokenb'] = int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8], 16)
+			self.subflows[identifier]['keyb'] = hexopt[4:]
 
 			# Vytvorim pravidlo pre ACK v opacnom smere
 			ofproto = datapath.ofproto
@@ -281,29 +209,15 @@ class SimpleSwitch13(app_manager.RyuApp):
 									tcp_flags=0x012)
 			self.del_flow(datapath, match)
 
-			# Receiver's key.
-			keyb = hexopt[4:]
-
-			# Store receiver's key and receiver's token to the appropriate connection.
-			values = {'tsrc': ip.src, 'tdst': ip.dst, 'htsrc_port': tcp_pkt.src_port,
-					  'htdst_port': tcp_pkt.dst_port, 'keyb': keyb, 'tokenb': tokenb}
-			query = "UPDATE mptcp.conn SET keyb='{keyb}',tokenb={tokenb} WHERE ip_src='{tdst}' AND ip_dst='{tsrc}' AND tcp_src={htdst_port} AND tcp_dst={htsrc_port};"
-			self.execute_insert(query.format(**values))
-		else:
-			pass
-			print "Already processed MP_CAPABLE SYN-ACK"
-
 	def mp_capable_ack(self, datapath, tcp_pkt, ip, src, dst, hexopt):
-		four_tuple = (ip.src, ip.dst, tcp_pkt.src_port, tcp_pkt.dst_port)
-		if four_tuple not in self.mpca:
-			#del self.pending_ack[self.pending_synack.index((ip.dst, ip.src, tcp_pkt.dst_port, tcp_pkt.src_port))]
-			self.mpca.append(four_tuple)
+		identifier = ip.src+ip.dst+str(tcp_pkt.src_port)+str(tcp_pkt.dst_port)
+
+		if identifier not in self.ack:
 			print "MP_CAPABLE ACK."
 
-			ofproto = datapath.ofproto
-			parser = datapath.ofproto_parser
+			self.ack.append(identifier)
 
-			# Zmazem pravidlo pre ACK v tomto smere
+			parser = datapath.ofproto_parser
 
 			match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=ip.src, ipv4_dst=ip.dst,
 									tcp_src=tcp_pkt.src_port, tcp_dst=tcp_pkt.dst_port,
@@ -312,43 +226,32 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 			tmp = nx.shortest_path(self.net, src, dst)
 
-			# Store available paths and retreat their IDs
-			idcko = self.store_path(tmp, 1)
+			self.subflows[identifier]['paths'] = tmp
 
-			# Get connection id:
-			values = {'tsrc': ip.src, 'tdst': ip.dst, 'htsrc_port': tcp_pkt.src_port,
-					  'htdst_port': tcp_pkt.dst_port}
-			query = "SELECT id from mptcp.conn where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port};"
-			conn_id = self.execute_select(query.format(**values))[0][0]
-
-			# Add entries to junction table.
-			values = {'conn_id': conn_id, 'path_id': idcko}
-			query = "INSERT into conn_path (conn_id, path_id) values ({conn_id},{path_id})"
-			self.execute_insert(query.format(**values))
-
-			# Sort paths by their length
-			#path = sorted(tmp, key=len)[0]
 			self.install_path(datapath, tcp_pkt, ip, tmp)
 
 	def mp_join_syn(self, datapath, tcp_pkt, ip, hexopt):
-		four_tuple = (ip.src, ip.dst, tcp_pkt.src_port, tcp_pkt.dst_port)
-		if four_tuple not in self.mpjs:
-			self.mpjs.append(four_tuple)
-			print "MP_JOIN SYN"
 
+		identifier = ip.src+ip.dst+str(tcp_pkt.src_port)+str(tcp_pkt.dst_port)
+
+		if identifier not in self.syn:
+			print "MP_JOIN SYN"
 			parser = datapath.ofproto_parser
 			ofproto = datapath.ofproto
-			# Receiver's token. From the MPTCP connection.
-			tokenb = int(hexopt[4:][:8], 16)
 
-			# Sender's nonce.
-			noncea = hexopt[12:]
+			paths = []
 
-			# Store IPs, ports, sender's nonce into subflow table.
-			values = {'tsrc': ip.src, 'tdst': ip.dst, 'tokenb': tokenb, 'noncea': noncea,
-					  'htsrc_port': tcp_pkt.src_port, 'htdst_port': tcp_pkt.dst_port}
-			query = "replace INTO mptcp.subflow (ip_src,ip_dst,tokenb,noncea,tcp_src,tcp_dst) values('{tsrc}','{tdst}',{tokenb},'{noncea}',{htsrc_port},{htdst_port});"
-			self.execute_insert(query.format(**values))
+			self.syn.append(identifier)
+
+			self.subflows[identifier] = {'tokenb': int(hexopt[4:][:8], 16),
+												'noncea': hexopt[12:],
+												'ip_src': ip.src,
+												'ip_dst': ip.dst,
+												'tp_src': tcp_pkt.src_port,
+												'tp_dst': tcp_pkt.dst_port,
+												'main': False,
+										 		'paths': paths
+												}
 
 			# Send B->A traffic to controller
 			match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=ip.dst, ipv4_dst=ip.src,
@@ -358,23 +261,18 @@ class SimpleSwitch13(app_manager.RyuApp):
 			self.add_flow(datapath, 2, match, actions)
 
 	def mp_join_syn_ack(self, datapath, tcp_pkt, ip, hexopt):
-		four_tuple = (ip.src, ip.dst, tcp_pkt.src_port, tcp_pkt.dst_port)
-		if four_tuple not in self.mpjsa:
+		identifier = ip.dst + ip.src + str(tcp_pkt.dst_port) + str(tcp_pkt.src_port)
+
+		if identifier not in self.synack:
 			print "MP_JOIN SYN-ACK"
-			self.mpjsa.append(four_tuple)
+
+			self.synack.append(identifier)
+
 			ofproto = datapath.ofproto
 			parser = datapath.ofproto_parser
-			# Receiver's truncated HASH.
-			trunhash = int(hexopt[4:][:16], 16)
 
-			# Receiver's nonce.
-			nonceb = hexopt[20:]
-
-			# Store truncated HASH and receiver's nonce into appropriate subflow.
-			values = {'tsrc': ip.src, 'tdst': ip.dst, 'htsrc_port': tcp_pkt.src_port,
-					  'htdst_port': tcp_pkt.dst_port, 'trunhash': trunhash, 'nonceb': nonceb}
-			query = "UPDATE mptcp.subflow SET trunhash={trunhash},nonceb='{nonceb}' WHERE ip_src='{tdst}' AND ip_dst='{tsrc}' AND tcp_src={htdst_port} AND tcp_dst={htsrc_port};"
-			self.execute_insert(query.format(**values))
+			self.subflows[identifier]['trunhash'] = int(hexopt[4:][:16], 16)
+			self.subflows[identifier]['nonceb'] = hexopt[20:]
 
 			# Send A->B traffic to controller
 			match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=ip.dst, ipv4_dst=ip.src,
@@ -389,8 +287,16 @@ class SimpleSwitch13(app_manager.RyuApp):
 			self.del_flow(datapath, match)
 
 	def mp_join_ack(self, datapath, tcp_pkt, ip, src, dst, hexopt, ev):
-		four_tuple = (ip.src, ip.dst, tcp_pkt.src_port, tcp_pkt.dst_port)
-		if four_tuple not in self.mpja:
+
+		identifier = ip.src + ip.dst + str(tcp_pkt.src_port) + str(tcp_pkt.dst_port)
+
+		if identifier not in self.ack:
+			print "MP_JOIN ACK"
+
+			connection = ""
+
+			self.ack.append(identifier)
+
 			# Zmazem pravidlo pre ACK v tomto smere
 			parser = datapath.ofproto_parser
 			match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=ip.src, ipv4_dst=ip.dst,
@@ -404,84 +310,26 @@ class SimpleSwitch13(app_manager.RyuApp):
 			actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
 			self.add_flow(datapath, 2, match, actions)
 
-			print "MP_JOIN ACK"
-			self.mpja.append(four_tuple)
+			hmachash = self.subflows[identifier]['hmachash'] = hexopt[4:]
 
-			# Sender's HASH.
-			hmachash = hexopt[4:]
+			my_tokenb = self.subflows[identifier]['tokenb']
 
-			# Store sender's HASH to appropriate subflow.
-			values = {'tsrc': ip.src, 'tdst': ip.dst, 'htsrc_port': tcp_pkt.src_port,
-					  'htdst_port': tcp_pkt.dst_port, 'hmachash': hmachash}
-			query = "UPDATE mptcp.subflow SET hash='{hmachash}' WHERE ip_src='{tsrc}' AND ip_dst='{tdst}' AND tcp_src={htsrc_port} AND tcp_dst={htdst_port};"
-			self.execute_insert(query.format(**values))
+			for ident, value in self.subflows.iteritems():
+				if value['main'] and value['tokenb'] == my_tokenb:
+					connection = ident
+			#print "Connection ID: ", connection
 
-			# Get connection ID based on tokens.
-			values = {'tsrc': ip.src, 'tdst': ip.dst, 'htsrc_port': tcp_pkt.src_port,
-					  'htdst_port': tcp_pkt.dst_port}
-
-			query = "SELECT id from conn where tokenb in (SELECT tokenb from subflow where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port});"
-			conn_id = self.execute_select(query.format(**values))[0][0]
-
-			# Select keys from appropriate connection based on receiver's token.
-			values = {'tsrc': ip.src, 'tdst': ip.dst, 'htsrc_port': tcp_pkt.src_port,
-					  'htdst_port': tcp_pkt.dst_port, 'conn_id': conn_id}
-			query = "SELECT keya,keyb from conn where conn.id = {conn_id};"
-			#query = "SELECT keya,keyb from conn where tokenb in (SELECT tokenb from subflow where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port});"
-			keys = self.execute_select(query.format(**values))
-
-			# Select nonces for current subflow.
-			values = {'tsrc': ip.src, 'tdst': ip.dst, 'htsrc_port': tcp_pkt.src_port,
-					  'htdst_port': tcp_pkt.dst_port}
-			query = "SELECT noncea,nonceb from subflow where ip_src='{tsrc}' AND ip_dst='{tdst}' AND tcp_src={htsrc_port} AND tcp_dst={htdst_port};"
-			nonces = self.execute_select(query.format(**values))
-
-			# Key for generating HMAC is a concatenation of two keys. Message is a concatenation of two nonces.
-
-			keyhmac = binascii.unhexlify(keys[0][0] + keys[0][1])
-			message = binascii.unhexlify(nonces[0][0] + nonces[0][1])
+			keyhmac = binascii.unhexlify(self.subflows[connection]['keya'] + self.subflows[connection]['keyb'])
+			message = binascii.unhexlify(self.subflows[identifier]['noncea'] + self.subflows[identifier]['nonceb'])
 
 			# Generate hash.
 			vysledok = hmac.new(keyhmac, message, hashlib.sha1).hexdigest()
 
 			# Compare generated HASH to the one from MP_JOIN ACK.
 			if vysledok == hmachash:
-				# Insert connection ID to a current subflow.
-				values = {'tsrc': ip.src, 'tdst': ip.dst, 'htsrc_port': tcp_pkt.src_port, 'htdst_port': tcp_pkt.dst_port, 'id': conn_id}
-				query = "update subflow set connid = {id} where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port};"
-				self.execute_insert(query.format(**values))
-
-				# Get src and dst mac of appropriate connection.
-				query = "select src,dst from conn join subflow on subflow.connid=conn.id where conn.id=(select connid from subflow where ip_src='{tsrc}' and ip_dst='{tdst}' and tcp_src={htsrc_port} and tcp_dst={htdst_port}) group by src;"
-				result = self.execute_select(query.format(**values))
-				srcmac = result[0][0]
-				dstmac = result[0][1]
-
-				# All paths for current subflow
 				paths = sorted(list(nx.all_simple_paths(self.net, src, dst)),key=len)
 
-				#print "All paths for current subflow:"
-				#for p in paths:
-				#	print p
-
-				# Find paths of the connection.
-				values = {'conn_id': conn_id}
-				query = "select path_id, count, c.id, p.nodes from conn c inner join conn_path cp on c.id = cp.conn_id inner join path p on p.id = cp.path_id where c.id = {conn_id};"
-				cesty = self.execute_select(query.format(**values))
-
-				connection_paths = []
-
-				for akt in cesty:
-					cesticka = copy.deepcopy(akt)
-					cesticka = cesticka[3]
-					cesticka = cesticka.split(' ')
-					tmp_src = cesticka[0]
-					tmp_dst = cesticka[len(cesticka)-1]
-					cesticka = cesticka[1:-1]
-					cesticka = [int(x) for x in cesticka]
-					cesticka.insert(0,tmp_src)
-					cesticka.append(tmp_dst)
-					connection_paths.append(cesticka)
+				connection_paths = self.subflows[connection]['paths']
 
 				node_disjoint_test = copy.deepcopy(paths)
 				edge_disjoint_test = copy.deepcopy(paths)
@@ -492,10 +340,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 					if node_disjoint_path != 0:
 						#print "Found node-disjoint path."
 						chosen_path = node_disjoint_path
-						path_id = self.store_path(chosen_path, 1)
-						values = {'conn_id': conn_id, 'path_id': path_id}
-						query = "INSERT into conn_path (conn_id, path_id) values ({conn_id},{path_id})"
-						self.execute_insert(query.format(**values))
+						self.subflows[connection]['paths'].append(chosen_path)
+						self.subflows[identifier]['paths'].append(chosen_path)
 						break
 
 				if chosen_path == 0:
@@ -503,32 +349,22 @@ class SimpleSwitch13(app_manager.RyuApp):
 					for p in edge_disjoint_test:
 						edge_disjoint_path = copy.deepcopy(self.are_edge_disjoint(p, connection_paths))
 						if edge_disjoint_path != 0:
-							#print "Found edge-disjoint path."
-							chosen_path = edge_disjoint_path
-							chosen_path[0] = src
-							chosen_path[len(chosen_path)-1] = dst
-							path_id = self.store_path(chosen_path, 1)
-							values = {'conn_id': conn_id, 'path_id': path_id}
-							query = "INSERT into conn_path (conn_id, path_id) values ({conn_id},{path_id})"
-							self.execute_insert(query.format(**values))
+							self.subflows[connection]['paths'].append(chosen_path)
+							self.subflows[identifier]['paths'].append(chosen_path)
 							break
 
 				if chosen_path == 0:
 					#print "Neither node-disjoint paths or edge-disjoint paths were found. Using least used shortest path of connection."
-
 					chosen_path = nx.shortest_path(self.net,src,dst)
-					path_id = self.store_path(chosen_path, 1)
-					values = {'conn_id': conn_id, 'path_id': path_id}
-					query = "INSERT into conn_path (conn_id, path_id) values ({conn_id},{path_id})"
-					self.execute_insert(query.format(**values))
+					self.subflows[connection]['paths'].append(chosen_path)
+					self.subflows[identifier]['paths'].append(chosen_path)
 
-				print "Current paths: "
-				values = {'conn_id': conn_id}
-				query = "select p.nodes from conn c inner join conn_path cp on c.id=cp.conn_id inner join path p on p.id=cp.path_id where c.id={conn_id};"
-				paths = self.execute_select(query.format(**values))
+				#print "All paths: "
+				for k, v in self.subflows.iteritems():
+					print k, ": ", v['paths']
 
-				for p in paths:
-					print p
+				#del self.subflows[identifier]
+				#del self.subflows[connection]
 
 				self.install_path(datapath, tcp_pkt, ip, chosen_path)
 
@@ -536,7 +372,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 		parser = datapath.ofproto_parser
 		fullpath = copy.deepcopy(cesta)
 		tmppath = cesta[1:-1]
-		#print "Installing path from", ip.src, "to", ip.dst, "and backwards. Path is: ", fullpath
+		print "Installing path from", ip.src, "to", ip.dst, "and backwards. Path is: ", fullpath
 		for s in tmppath:
 			match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=ip.src,
 									ipv4_dst=ip.dst,
@@ -582,8 +418,6 @@ class SimpleSwitch13(app_manager.RyuApp):
 		if self.break_broadcast_storm(pkt, src, dst, datapath, in_port):
 			return
 
-		#self.logger.info("Packet arrived at switch no. %d, source MAC is: %s, destination MAC is: %s, in_port is: %s",
-		#				 datapath.id, src, dst, in_port)
 		ip = pkt.get_protocol(ipv4.ipv4)
 
 		tcp_pkt = pkt.get_protocol(tcp.tcp)
@@ -602,19 +436,19 @@ class SimpleSwitch13(app_manager.RyuApp):
 						# MP CAPABLE
 						if subtype == "00":
 							if tcp_pkt.bits == 2:
-								self.mp_capable_syn(datapath,tcp_pkt, ip, src, dst,hexopt)
+								self.mp_capable_syn(datapath,tcp_pkt, ip, src, dst, hexopt)
 							elif tcp_pkt.bits == 18:
-								self.mp_capable_syn_ack(datapath,tcp_pkt, ip, src, dst,hexopt)
+								self.mp_capable_syn_ack(datapath,tcp_pkt, ip, src, dst, hexopt)
 							elif tcp_pkt.bits == 16:
-								self.mp_capable_ack(datapath,tcp_pkt, ip, src, dst,hexopt)
+								self.mp_capable_ack(datapath,tcp_pkt, ip, src, dst, hexopt)
 						# MP_JOIN
 						elif subtype == "10" or subtype == "11":
 							if tcp_pkt.bits == 2:
-								self.mp_join_syn(datapath, tcp_pkt, ip,hexopt)
+								self.mp_join_syn(datapath, tcp_pkt, ip, hexopt)
 							elif tcp_pkt.bits == 18:
-								self.mp_join_syn_ack(datapath,tcp_pkt, ip,hexopt)
+								self.mp_join_syn_ack(datapath,tcp_pkt, ip, hexopt)
 							elif tcp_pkt.bits == 16:
-								self.mp_join_ack(datapath, tcp_pkt, ip, src, dst,hexopt,ev)
+								self.mp_join_ack(datapath, tcp_pkt, ip, src, dst, hexopt,ev)
 
 		if src not in self.net:
 			self.net.add_node(src)
