@@ -1,6 +1,20 @@
 CHANGES
 =======
 
+* Skripty
+* rychle
+* Fattree
+* Cele prerobene
+* Handlovanie ciest
+* Upraveny kod a zlepsenie posielanie SYN packetov
+* nevladzem
+* lepsie
+* new
+* novy stroj
+*  ds
+* joo
+* jo
+* check final
 * v
 * CHanged db conn
 * DP
@@ -49,6 +63,10 @@ CHANGES
 * test\_controller: Test cases for \_split\_addr()
 * controller: APIs to register switch address dynamically
 * controller: Support proactive connection
+
+v4.18
+-----
+
 * Ryu 4.18
 * zclient/zserver: Support FRRouting messages format
 * test\_zebra: Enhance test cases
@@ -68,6 +86,10 @@ CHANGES
 * packet/zebra: Return "ZebraMessage" for message from Zebra
 * packet/zebra: Fix unresolved reference for \_serialize\_nexthops
 * Only import pip if needed
+
+v4.17
+-----
+
 * Ryu 4.17
 * topology/switches: Fix delete port can't immediately remove link
 * BGPSpeaker/net\_ctrl: Close activity for each session
@@ -77,6 +99,10 @@ CHANGES
 * packet/icmpv6: Assert length in options are valid
 * packet/icmpv6: Fix parsing undefined nd\_option fails
 * ofp\_event: Timestamp when OpenFlow event was generated
+
+v4.16
+-----
+
 * Ryu 4.16
 * doc: Fix unexpected indent in ryu/lib/packet/bgp.py
 * doc: Deprecated option html\_use\_smartypants
@@ -86,6 +112,10 @@ CHANGES
 * ofproto: Handle OFPErrorExperimenterMsg
 * bgp\_sample\_conf: absolute\_import to suppress warnings
 * service/ovsdb: get socket from RemoteOvsdb
+
+v4.15
+-----
+
 * Ryu 4.15
 * Revert "tests: Separate test files from Ryu module"
 * tests: Separate test files from Ryu module
@@ -102,6 +132,10 @@ CHANGES
 * CONTRIBUTING: Update procedure for submitting patches
 * README: Dependencies for installing optional requirements
 * service/ovsdb: Default of controller\_info in set\_controller
+
+v4.14
+-----
+
 * Ryu 4.14
 * doc: fix error in ovsdb\_manager.rst code
 * fix dhcp6.py bug using python3
@@ -139,6 +173,10 @@ CHANGES
 * bgp: Enable to configure default local preference
 * packet/zebra: Support IP\_ROUTE message from Zebra
 * lib/hub: Workaround for issue of eventlet
+
+v4.13
+-----
+
 * Ryu 4.13
 * nicira\_ext: Constants for IP fragment matching
 * bgp/info\_base: Refactor has\_nexthop() method
@@ -161,6 +199,10 @@ CHANGES
 * library\_packet\_ref:Add bgp reference for Flow Specification
 * test\_bgp: Add test cases for user interface of Flow Specification
 * packet/bgp: Implement user interface of Flow Specification
+
+v4.12
+-----
+
 * Ryu 4.12
 * hub.StreamServer: Ommit validation for IPv4 address
 * wsgi: Change default wsgi listen host to "0.0.0.0"
@@ -188,6 +230,10 @@ CHANGES
 * packet/bgp: Support Flow Specification
 * pakcket/bgp: pylint
 * BGPSpeaker: Support to advertise Type 1, 2 Route Target
+
+v4.11
+-----
+
 * Ryu 4.11
 * utils: Re-implement parse\_requirements
 * docker\_base.py: fix an ip option of "docker network connect"
@@ -200,6 +246,10 @@ CHANGES
 * doc: library\_packet\_ref: Add reference of openflow
 * test\_openflow: Add unit tests for OpenFlow packet library
 * packet lib: Add packet library of OpenFlow
+
+v4.10
+-----
+
 * Ryu 4.10
 * library\_packet\_ref: Update dhcp reference method
 * test\_dhcp: Extend unit test for fragmented options
@@ -251,6 +301,10 @@ CHANGES
 * packet/bgp: Support multiple BGP messages in a packet
 * BGPSpeaker: Support Ethernet A-D Route and Ethernet Segment Route
 * packet/bgp: Fix the ESI Label Extended Community to use mpls\_label
+
+v4.9
+----
+
 * Ryu 4.9
 * scenario test: Fix the wrong retry check in command execution
 * Enable to run a scenario test with a specific python version
@@ -331,6 +385,10 @@ CHANGES
 * ofproto/nicira\_ext: Add missing NXMs in OVS v2.6.0
 * ryu/lib/ofctl\_v1\_3: port name decoding fix
 * BGPSpeaker: Enhance APIs for operator.show
+
+v4.7
+----
+
 * Ryu 4.7
 * BGPSpeaker: Fix to enable to notify peer down
 * use old cryptography version
@@ -362,6 +420,10 @@ CHANGES
 * doc: specify OFP v1.0 for sample application
 * add modify role API in ofctl\_rest
 * lib/ofctl\_v1\_4: correct argument order for OFPFlowMod constructor
+
+v4.6
+----
+
 * Ryu 4.6
 * Validate OpenFlow message length in header, to prevent controller receive loop DoS
 * PyInstaller: Enable to build stand-alone executables
@@ -393,6 +455,10 @@ CHANGES
 * stringify: Fix to utilise six.moves.builtins
 * ofctl\_nicira\_ext: Fix not enough arguments for format string
 * ofctl\_nicira\_ext: Resolve not initialized values
+
+v4.5
+----
+
 * Ryu 4.5
 * Ensure that send() and send\_msg() in controller return status to calling applications
 * Clean up stale Datapath objects in the ofctl\_service application
@@ -420,6 +486,10 @@ CHANGES
 * packet/bgp: Support Four-Octet AGGREGATOR Path Attribute
 * BGPSpeaker: Fix capability check when MP-BGP not supported
 * fix of13 VLAN\_PCP test case
+
+v4.4
+----
+
 * Ryu 4.4
 * topology: ignore cfm packets on packet in
 * topology: pep8 fixes
@@ -444,6 +514,10 @@ CHANGES
 * ofproto/nx\_actions: Update serialize and parse
 * Extend OVSDB api
 * Fix RuntimeError of lldp\_packet\_in\_handler
+
+v4.3
+----
+
 * Ryu 4.3
 * nx\_match: add tun\_ipv6\_{src,dst}
 * packet\_data\_generator3: Clear xid into zero
@@ -496,12 +570,20 @@ CHANGES
 * ofctl\_utils: Confirm binary type data in send\_experimenter
 * test\_import\_module: Update test cases
 * utils: fix for temporarily storing the value of sys.path
+
+v4.2
+----
+
 * Ryu 4.2
 * Enable filtering the OVSDB schema tables/columns
 * tox: Upgrade PyPy version to 2.6
 * Eventlet throws a subclass of IOError when an SSL read timeout occurs. Ensure that the read loop continues in this case
 * Added support for the tcp flags nicira extension
 * Removes unnecessary Windows requirements
+
+v4.1
+----
+
 * Ryu 4.1
 * doc/app/ofctl\_rest: Update example of set-field action
 * doc/app/ofctl\_rest: Update the code-block language of response data
@@ -556,6 +638,10 @@ CHANGES
 * ofproto\_v1\_3: Add unit test cases for action experimenter
 * ofproto\_v1\_5: Reduce an unnecessary code
 * ofproto\_v1\_5: Add test case for OFPExperimenter
+
+v4.0
+----
+
 * Ryu 4.0
 * Typo fixes
 * of: add echo request support
@@ -586,6 +672,10 @@ CHANGES
 * tox: Adapt to PyPy interpreter
 * of12/3/4/5: fix to\_jsondict of OFPActionSetField
 * protocols/bgp: Log socket creation error
+
+v3.30
+-----
+
 * Ryu 3.30
 * Update conntrack test json and binary packets
 * test\_parser: add conntrack NAT tests
@@ -624,6 +714,10 @@ CHANGES
 * fixes for mutable default arguments
 * Cleanup variable name for clarity
 * cap oslo.config version only in python2.6
+
+v3.29
+-----
+
 * Ryu 3.29
 * Generate new datapath event for switch connecting multiple times
 * Fix handling of state transition to config mode
@@ -650,6 +744,10 @@ CHANGES
 * test\_controller: Add unit test for \_recv\_loop()
 * controller: Split received message buffer
 * Fix a stability issue relating to switch disconnection/re-connection events
+
+v3.28
+-----
+
 * Ryu 3.28
 * test\_parser: add conntrack tests
 * packet\_data\_generator3: add a couple of conntrack packets
@@ -662,6 +760,10 @@ CHANGES
 * python3: import \_\_future\_\_ for just in case
 * python3: StandardError doesn't exist
 * ofctl\_v1\_3: Fix unsuitable error log in mod\_meter\_entry()
+
+v3.27
+-----
+
 * Ryu 3.27
 * bgp: fix of sending "Start-of-RIB" and "End-of-RIB" in Enhanced Route-Refresh
 * doc/app/ofctl\_rest: Add description for OFPTableStats message
@@ -699,6 +801,10 @@ CHANGES
 * of10: Add \_\_contains\_\_ method into OFPMatch
 * test\_parser\_v10: Fix wildcards param for unit test
 * of10: Support human readable MAC/IPv4 address in OFPMatch
+
+v3.26
+-----
+
 * Ryu 3.26
 * switch/tester: Add sleep interval for each test case
 * ofproto\_v1\_[45]\_parser: Add parser() for OFPRequestForward
@@ -736,6 +842,10 @@ CHANGES
 * test\_parser: Add expected json outputs for OF1.5
 * doc: Add openflow api reference for of1.5
 * test\_parser: Add test case for OFP15 table\_features\_reply
+
+v3.25
+-----
+
 * Ryu 3.25
 * packet: dhcp should set \_MIN\_LEN
 * packet: udp should detect dhcp
@@ -814,6 +924,10 @@ CHANGES
 * ofproto\_v1\_5\_parser: Add OFPGroupProp support
 * ofproto\_v1\_5\_parser: Add OFPGroupBucketProp support
 * ofproto\_v1\_5: Fix a typo
+
+v3.24
+-----
+
 * Ryu 3.24
 * ospf: fix serialize() to work with packet.Packet()
 * of1.5: Multipart METER\_CONFIG was renamed to METER\_DESC
@@ -863,6 +977,10 @@ CHANGES
 * python3: Partially revert b'str' conversion
 * python3: Use six.indexbytes for extracting single byte of data
 * python3: Store AsciiStringType class data as str
+
+v3.23
+-----
+
 * Ryu 3.23
 * python3: fix bgp reggression
 * python3: Misc. python3 fix
@@ -921,6 +1039,10 @@ CHANGES
 * Fixed the function name of out filter
 * ofctl\_rest: fix error of delete\_flow\_entry
 * ofctl\_v1\_0: fix output of get\_flow\_stats
+
+v3.22
+-----
+
 * Ryu 3.22
 * test\_parser: Add some expected json representations
 * packet\_data: Regen
@@ -940,6 +1062,10 @@ CHANGES
 * Adapt to namespace-less oslo
 * test\_lib: Remove a questional exception re-raising
 * Be able to parse classes that start with "NX"
+
+v3.21
+-----
+
 * Ryu 3.21
 * Suppress warning
 * sw test tool: Fix typo
@@ -994,6 +1120,10 @@ CHANGES
 * packet\_data\_generator2: README
 * Show warning when Datapath#ports is read
 * Syntax level compatibility with Python 3
+
+v3.20
+-----
+
 * Ryu 3.20
 * rest\_firewall: Prevent adding fields which is unrelated to match
 * ofctl\_v1\_[23]: Ignore unkown match fields
@@ -1018,6 +1148,10 @@ CHANGES
 * ryu.app.ofctl: Handle a race with connection close
 * silence pep8 warnings to the previous commit
 * Reduce logging overhead by cleaning up logging calls
+
+v3.19
+-----
+
 * Ryu 3.19
 * snortlib: Remove disabled flag MSG\_WAITALL
 * ryu.cfg: Use a dedicated ConfigOpt instance
@@ -1040,6 +1174,10 @@ CHANGES
 * bgp: support of new api for "show neighbor"
 * bgp: Fixed error in bgp implementation with single peer
 * bgp: fix bug of Path formatting in "show neighbor"
+
+v3.18
+-----
+
 * Ryu 3.18
 * bgp: bug fix of sending Adj-RIB-Out
 * ryu-manager: add --enable-debugger option
@@ -1077,6 +1215,10 @@ CHANGES
 * ospf: fix wrong OSPF LSA type
 * bgp: support of understanding assigned mpls-label for prefix\_add in vpnv4
 * ofctl\_v1\_0/2/3: Fix unsuitable log level
+
+v3.17
+-----
+
 * Ryu 3.17
 * ospf: add SummaryLSA class
 * ofctl\_v1\_2, 3: Fix regression of IP arbitrary bitmask support
@@ -1091,6 +1233,10 @@ CHANGES
 * doc/app/ofctl\_rest: Add description for capabilities field in OPFMeterFeatures
 * ofctl\_v1\_3: Fix to parse capabilities field in OPFMeterFeatures
 * ofproto\_v1\_[234]\_parser: Add notes for vlan\_vid match field
+
+v3.16
+-----
+
 * Ryu 3.16
 * packet lib: don't crash with bogus ospf packet
 * bmp: bug fix of peer bgp ID in BMP Message
@@ -1118,6 +1264,10 @@ CHANGES
 * doc: Add tables about match and actions structures
 * bgp: remove uncommon open msg check
 * bgp: fix \_OptParamCapability parser
+
+v3.15
+-----
+
 * Ryu 3.15
 * simple\_switch\_12: handle non-buffering switch
 * simple\_switch: handle non-buffering switch
@@ -1161,6 +1311,10 @@ CHANGES
 * ofproto\_v1\_3\_parser: Handle experimenter OXMs in TableFeatures
 * oxm\_fields: Add a comment
 * bgp: support next\_hop\_self
+
+v3.14
+-----
+
 * Ryu 3.14
 * doc: Add ryu.app.ofctl\_rest document
 * of: Fix name of class member variables
@@ -1186,6 +1340,10 @@ CHANGES
 * bgp: rpc-api 'core.start' method in Network Controller
 * import BGPPathAttributeCommunities in peer manager
 * bmp: add client information to each bmp message
+
+v3.13
+-----
+
 * Ryu 3.13
 * ws\_topology: bugfix an event is dropped
 * bgp: should not use dict comprehension
@@ -1223,6 +1381,10 @@ CHANGES
 * packet/bgp: add 32bit AS number support to BGPPathAttributeAsPath
 * added parameter for vrfs\_get (in case of format = 'cli')
 * added parameter for rib\_get
+
+v3.12
+-----
+
 * Ryu 3.12
 * ofctl\_rest: Add support for strict matching
 * bgp: fix conflict of PEER\_NEXT\_HOP and NEXT\_HOP value
@@ -1276,6 +1438,10 @@ CHANGES
 * bgp: support specifying nexthop per prefix
 * pip-requires: gui\_topology requires webob>=1.2
 * bgp: fix send\_notificaiton crash
+
+v3.11
+-----
+
 * Ryu 3.11
 * ospf: describe prefix in one attribute 'prefix' for ease of use
 * ospf: add segment routing opaque types
@@ -1349,6 +1515,10 @@ CHANGES
 * rest\_qos: Enable queue setting to interface individually
 * packet lib: add Connectivity Fault Management Protocol(CFM, IEEE 802.1ag)
 * app\_manager: Fix a crash in unregister\_handler
+
+v3.10
+-----
+
 * Ryu 3.10
 * doc: add test-of-config-with-linc page
 * doc: add test-vrrp page
@@ -1428,6 +1598,10 @@ CHANGES
 * sw test tool: Reduce similar methods
 * Added queue stats request
 * Added ovs-vsctl commands of QoS-related
+
+v3.9
+----
+
 * Ryu 3.9
 * sw test tool: Modify lengths of pad fields for ARP
 * sw test tool: Revert changes of test files
@@ -1494,6 +1668,10 @@ CHANGES
 * controller.handler: use normal classes rather than a namedtuple
 * controller.handler: g/c now unused code
 * igmplib: Fix a problem that querier stops sending a query message
+
+v3.8
+----
+
 * Ryu 3.8
 * bgp: fix pep8
 * bgp: enable to propagate ipv4 networks
@@ -1579,6 +1757,10 @@ CHANGES
 * add ryu.cfg
 * ryu.conf: obsoleted argument used in sample configuration
 * ofctl\_v1\_2/3: IPv4 dotted decimal subnet mask support
+
+v3.7
+----
+
 * Ryu 3.7
 * test\_parser: update expected json representation
 * OFPPropCommonExperimenter4ByteData: change payload to bytes
@@ -1711,6 +1893,10 @@ CHANGES
 * of14: Fix OFPInstructionWriteMetadata JSON decode
 * of14: set default attributes for OFPMultipartRequest subclasses
 * of14: add some assertions
+
+v3.6
+----
+
 * Ryu 3.6
 * of13: set default attributes for OFPMultipartRequest subclasses
 * of12: set default attributes for OFPStatsRequest subclasses
@@ -1802,6 +1988,10 @@ CHANGES
 * lib.of\_config: import ryu.contrib
 * tests: add some tests for ryu.lib.of\_config.classes
 * A happy new year 2014
+
+v3.5
+----
+
 * Ryu 3.5
 * firewall: correct acquisition result of DENY rule
 * ofctl\_rest: fix mod\_meter\_entry in OpenFlow1.0/1.2
@@ -1863,6 +2053,10 @@ CHANGES
 * stplib: Reduction of the number of threads
 * add OpenFlow 1.4 definitions
 * packet lib: igmp: support default parameters
+
+v3.4
+----
+
 * Ryu 3.4
 * vrrp: handle interface failure
 * rpc-cli man page
@@ -1980,6 +2174,10 @@ CHANGES
 * packet\_data\_generator: add cases to use all oxm types
 * packet\_data\_generator: update of\_protocol
 * normalize \*.json files
+
+v3.3
+----
+
 * Ryu 3.3
 * Decoration Based PacketIn Filter
 * of13: correct variable name same as spec
@@ -2059,11 +2257,19 @@ CHANGES
 * packet.bgp: implement RFC 4893
 * packet.bgp: parse/serialize path attribute values
 * python-oslo-config is necessary for Ryu built by RPM
+
+v3.2
+----
+
 * Ryu 3.2
 * fix setup from a tarball again
 * avoid pbr's non multi-version aware script
 * revert "support setup.py install with git archive tarballs" commit
 * revert "stick with pbr 0.5.19" commit
+
+v3.1
+----
+
 * Ryu 3.1
 * packet lib: dhcp: remove unnecessary import
 * packet lib: dhcp: add unittest
@@ -2148,6 +2354,10 @@ CHANGES
 * stringify: add 'utf-8' type
 * packet lib: update icmpv6 doc
 * use run\_tests.sh -N for Travis CI
+
+v3.0
+----
+
 * Ryu 3.0
 * rest\_firewall: blocked packet logging
 * ofctl v1.0/v1.2: add miss\_send\_len for packet in
@@ -2321,6 +2531,10 @@ CHANGES
 * rest\_router: update after packet lib api changes
 * topology.switches: update after packet lib api changes
 * packet lib: change the api to use text addresses
+
+v2.2
+----
+
 * Ryu 2.2
 * sync README with the web site
 * add 2013 to copyright for documentations
@@ -2430,6 +2644,10 @@ CHANGES
 * lib/packet: teach packet library to truncate padding octet
 * lib/packet: make packet\_base.parser abstract method
 * lib/packet: make protocol\_name property instead of attributes
+
+v2.1
+----
+
 * Ryu 2.1
 * rename ryu-client under ryu/tests
 * of1.3: fix OFPSetConfig default arguments
@@ -2471,6 +2689,10 @@ CHANGES
 * Add config file for Travis
 * packet lib: allow packet type to be specified when parsing packet
 * packet lib: For convenience, make packet into a sequence type
+
+v2.0
+----
+
 * Ryu 2.0
 * of1.3: various fixes
 * fix 77effb29 regression
@@ -2524,6 +2746,10 @@ CHANGES
 * controller: fix send queue draining again
 * sweep the tree to change from gevent to ryu.lib.hub
 * add a threading hub module
+
+v1.9
+----
+
 * Ryu 1.9
 * of1.0: add nx\_aggregate\_stats support
 * of1.0: OFPMatch support keyword-style parameters
@@ -2573,6 +2799,10 @@ CHANGES
 * remove openstack related document
 * ryu/lib/packet/packet.py: should use isinstance instead of \_\_class\_\_.\_\_base\_\_
 * lib/packet/packet\_utils: optimize checksum
+
+v1.8
+----
+
 * Ryu 1.8
 * rest\_firewall: fix comments
 * topology/dumper: fix RyuApp.\_\_init\_\_ signature
@@ -2656,6 +2886,10 @@ CHANGES
 * test of1.2: fix typos from mid to min
 * g/c --monkey-patch option
 * test of1.2: add test code of OFPErrorExperimenterMsg
+
+v1.7
+----
+
 * Ryu 1.7
 * RyuApp: allows observers to specify state
 * lib/mac: fix raise ValueError
@@ -2758,6 +2992,10 @@ CHANGES
 * dpset: fix join race
 * packet lib: pep8 warning fix
 * test: remove some unnecessary bash dependencies
+
+v1.6
+----
+
 * Ryu 1.6
 * test: add mininet-test suite
 * test: Add "Decrement IP TTL" integration test
@@ -2776,6 +3014,10 @@ CHANGES
 * of1.3: support OFPHET\_VERSIONBITMAP
 * doc: setup TLS connection
 * of1.3: fix OFPT\_PACKET\_IN parser
+
+v1.5
+----
+
 * Ryu 1.5
 * set setup.py install\_requires properly
 * python/ovs/stream: Fix Stream.connect() retval for incomplete connection
@@ -2810,6 +3052,10 @@ CHANGES
 * prepare contrib directory which holds third party library
 * of1.2: Fix OFPActionExperimenter parser
 * packet lib: remove unnecessary ICMP debug message
+
+v1.4
+----
+
 * Ryu 1.4
 * ryu/app/ofctl\_rest: implements ofctl\_rest app
 * ryu/lib/ofctl\_v1\_0: introduce OF interface
@@ -2832,6 +3078,10 @@ CHANGES
 * utils: a helper function to convert byte array into hex string
 * of1.0: fix/add PortMod message
 * Removed leading '/' from data\_files
+
+v1.3
+----
+
 * Ryu 1.3
 * Fix zero padding
 * packet lib: fix vlan pcp bitshift
@@ -2857,6 +3107,10 @@ CHANGES
 * doc: use ryu version constant
 * doc: change Sphinx style to haiku
 * doc: fix the link in README.rst
+
+v1.2
+----
+
 * Ryu 1.2
 * remove OFPFlowRemoved and OFPPortStatus handlers in MAIN\_DISPATCHER
 * remove unnecessary OFPFlowRemoved and OFPBarrierReply handlers in CONFIG\_DISPATCHER
@@ -2889,6 +3143,10 @@ CHANGES
 * rename ryu/ofproto/in.py to ryu/ofproto/inet.py
 * test: specify OF version in integrated test suite
 * Add SubmittingPatches doc
+
+v1.1
+----
+
 * Ryu 1.1
 * of1.2: handle unknown match field properly
 * test: simplify integrated OVS test suite
@@ -2938,6 +3196,10 @@ CHANGES
 * test: add more of1.2 unittests
 * of1.2: add missing struct ofp\_bucket definition
 * of1.2: implement FlowStats instruction parser
+
+v1.0
+----
+
 * Ryu 1.0
 * of1.2: add unittest workaround to OFPPortStatus parser
 * of1.2: fix bugs
@@ -3108,6 +3370,10 @@ CHANGES
 * update docs on the license switch
 * Switch to Apache 2.0 license
 * Use the original file license
+
+v0.2
+----
+
 * ryu 0.2
 * ignore GreenletExit exception
 * Add NXActionSetTunnel and NXActionSetTunnel64
@@ -3201,4 +3467,8 @@ CHANGES
 * doc: use Network Operating System instead of Network OS for consistency
 * doc: fix typo
 * doc: clarify our goal for OpenStack
+
+v0.1
+----
+
 * initial commit

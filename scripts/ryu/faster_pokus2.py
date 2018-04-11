@@ -35,6 +35,11 @@ class SimpleSwitch13(app_manager.RyuApp):
 		self.synack = []
 		self.ack = []
 
+	def number_of_common_nodes(self, p, cesty):
+		count = 0
+		for cesta in cesty:
+			count = count + len(list(set(p).intersection(cesta)))
+		return count
 	def are_node_disjoint(self, p, cesty):
 		print "Na zaciatku funkcie: ", p, cesty
 		for cesta in cesty:
@@ -340,24 +345,30 @@ class SimpleSwitch13(app_manager.RyuApp):
 				# Connection_paths = all paths of connection
 				for p in self.subflows[connection]['paths']:
 					connection_paths.append(p)
-				#connection_paths = self.subflows[connection]['paths']
 
 				print "Connection_paths: ", connection_paths
 				node_disjoint_test = copy.deepcopy(paths)
 				edge_disjoint_test = copy.deepcopy(paths)
 				chosen_path = 0
 
+				common_nodes = []
 				# For each available path of current subflow
 				for node in node_disjoint_test:
-					print "Testing if path", node, "is node-disjoint with ", connection_paths
-					node_disjoint_path = copy.deepcopy(self.are_node_disjoint(node, connection_paths))
-					print "Result of the test: ", node_disjoint_path
-					# Najde ze nejaka cesta subflowu je node disjoint
-					if node_disjoint_path != 0:
-						chosen_path = node_disjoint_path
-						self.subflows[connection]['paths'].append(chosen_path)
-						self.subflows[identifier]['paths'].append(chosen_path)
-						break
+					#print "Testing common elements of", node, "and", connection_paths
+					#print "Testing if path", node, "is node-disjoint with ", connection_paths
+					common_elements = self.number_of_common_nodes(node, connection_paths)
+					#print "Number of common elements: ", common_elements
+					common_nodes.append({'path': node,'count': common_elements})
+					#print "Common nodes: ", common_nodes
+
+				# Najde ze nejaka cesta subflowu je node disjoint
+				#common_nodes.sort(key=lambda x: common_nodes['count'])
+				node_disjoint_path = sorted(common_nodes, key=itemgetter('count'))[0]['path']
+				#node_disjoint_path = common_nodes[0]['path']
+				if node_disjoint_path != 0:
+					chosen_path = node_disjoint_path
+					self.subflows[connection]['paths'].append(chosen_path)
+					self.subflows[identifier]['paths'].append(chosen_path)
 
 				if chosen_path == 0:
 					print "No node-disjoint paths available. Looking for edge-disjoint paths."

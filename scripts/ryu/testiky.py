@@ -7,8 +7,11 @@ from itertools import islice
 disjoints = []
 
 disjoints.append({'path':'jozko','disjoints':1})
-disjoints.append({'path':'ferko','disjoints':2})
-disjoints.append({'path':'mirko','disjoints':3})
+disjoints.append({'path':'ferko','disjoints':3})
+disjoints.append({'path':'mirko','disjoints':2})
 
-print disjoints
 
+from operator import itemgetter
+result = sorted(disjoints, key=itemgetter('disjoints'))[-1]['path']
+
+print result

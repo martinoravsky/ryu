@@ -37,6 +37,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 	def are_node_disjoint(self, p, cesty):
 		print "Na zaciatku funkcie: ", p, cesty
+		disjoints = []
+		result = []
 		for cesta in cesty:
 			print "Cesta v loope testu hladania node disjoint ciest: ", cesta
 			tmp1 = copy.deepcopy(cesta)
@@ -333,7 +335,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 			# Compare generated HASH to the one from MP_JOIN ACK.
 			if vysledok == hmachash:
-				paths = sorted(list(nx.all_simple_paths(self.net, src, dst)), key=len)
+				paths = sorted(list(nx.all_shortest_paths(self.net, src, dst)), key=len)
 
 				connection_paths = []
 				# Paths = all paths of current subflow
@@ -347,24 +349,52 @@ class SimpleSwitch13(app_manager.RyuApp):
 				edge_disjoint_test = copy.deepcopy(paths)
 				chosen_path = 0
 
+				disjoints = []
 				# For each available path of current subflow
 				for node in node_disjoint_test:
 					print "Testing if path", node, "is node-disjoint with ", connection_paths
 					node_disjoint_path = copy.deepcopy(self.are_node_disjoint(node, connection_paths))
 					print "Result of the test: ", node_disjoint_path
 					# Najde ze nejaka cesta subflowu je node disjoint
+
 					if node_disjoint_path != 0:
-						chosen_path = node_disjoint_path
-						self.subflows[connection]['paths'].append(chosen_path)
-						self.subflows[identifier]['paths'].append(chosen_path)
-						break
+						tmp1 = copy.deepcopy(node_disjoint_path)
+						print "TMP1: ", tmp1
+						tmp1 = tmp1[1:-1]
+						if tmp1 in disjoints:
+							disjoints[tmp1]['disjoints'] = disjoints[tmp1]['disjoints'] + 1
+							disjoints[tmp1]['full'] = node_disjoint_path
+						else:
+							tmp2 = copy.deepcopy(node_disjoint_path)
+							tmp2 = tmp2[1:-1]
+							disjoints.append({'path': tmp2, 'disjoints': 1,'full':node_disjoint_path})
+					print "Disjoints: ", disjoints
+
+				# Mam zoznam disjointov, vyberam tu co je disjoint s najvia
+				if len(disjoints) > 0:
+
+					result = []
+
+					#disjoints.sort(key=lambda x: disjoints['disjoints'])
+					#disjoints.sort(key=lambda x: len(disjoints['path']))
+
+					result = sorted(disjoints, key=lambda v:v['disjoints'])
+					result = sorted(disjoints, key=lambda v:len(v['path']))
+
+					print "Disjoints: ", result
+					result = disjoints[-1]['full']
+					print "Vysledna cesta: ", result
+					print "Found node-disjoint path."
+					chosen_path = result
+					self.subflows[connection]['paths'].append(result)
+					self.subflows[identifier]['paths'].append(result)
+
 
 				if chosen_path == 0:
 					print "No node-disjoint paths available. Looking for edge-disjoint paths."
 					for edge in edge_disjoint_test:
 						edge_disjoint_path = copy.deepcopy(self.are_edge_disjoint(edge, connection_paths))
 						if edge_disjoint_path != 0:
-							chosen_path = edge_disjoint_path
 							self.subflows[connection]['paths'].append(chosen_path)
 							self.subflows[identifier]['paths'].append(chosen_path)
 							break
