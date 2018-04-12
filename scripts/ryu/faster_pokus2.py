@@ -13,9 +13,21 @@ from ryu.ofproto import ofproto_v1_3
 from ryu.topology import event
 from ryu.topology.api import get_switch, get_link
 from operator import itemgetter
+import json
+from ryu.app.wsgi import Response
+from ryu.app.wsgi import route
+from ryu.app.wsgi import WSGIApplication
+from ryu.base import app_manager
+from ryu.app.wsgi import ControllerBase
+import os
+import matplotlib.pyplot as plt
+
+simple_switch_instance_name = 'dp_api_app'
+
 
 class SimpleSwitch13(app_manager.RyuApp):
 	OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
+	_CONTEXTS = {'wsgi': WSGIApplication}
 
 	def __init__(self, *args, **kwargs):
 		"""
@@ -34,12 +46,17 @@ class SimpleSwitch13(app_manager.RyuApp):
 		self.syn = []
 		self.synack = []
 		self.ack = []
+		#self.dp = data['dp']
+		wsgi = kwargs['wsgi']
+		wsgi.register(SimpleSwitchController,
+				  {simple_switch_instance_name: self})
 
 	def number_of_common_nodes(self, p, cesty):
 		count = 0
 		for cesta in cesty:
 			count = count + len(list(set(p).intersection(cesta)))
 		return count
+
 	def are_node_disjoint(self, p, cesty):
 		print "Na zaciatku funkcie: ", p, cesty
 		for cesta in cesty:
@@ -167,7 +184,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 			ofproto = datapath.ofproto
 			parser = datapath.ofproto_parser
-
+			print "TP_SRC: ", tcp_pkt.src_port
+			print "TP_DST: ", tcp_pkt.dst_port
 			paths = []
 
 			self.syn.append(identifier)
@@ -183,6 +201,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 										 'main': True,
 										 'paths': paths}
 
+			print "Po SYN:"
+			print self.subflows[identifier]
 			# Vytvorim pravidlo pre SYN-ACK na opacnom smere
 			match = parser.OFPMatch(eth_type=0x0800,
 									ip_proto=6,
@@ -262,7 +282,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 										 'tp_src': tcp_pkt.src_port,
 										 'tp_dst': tcp_pkt.dst_port,
 										 'main': False,
-										 'paths': paths
+										 'paths': paths,
 										 }
 
 			# Send B->A traffic to controller
@@ -329,6 +349,9 @@ class SimpleSwitch13(app_manager.RyuApp):
 				if value['main'] and value['tokenb'] == my_tokenb:
 					connection = ident
 			# print "Connection ID: ", connection
+
+			print "self.subflows[connections]",self.subflows[connection]
+			print "self.subflows[identifier]", self.subflows[identifier]
 
 			keyhmac = binascii.unhexlify(self.subflows[connection]['keya'] + self.subflows[connection]['keyb'])
 			message = binascii.unhexlify(self.subflows[identifier]['noncea'] + self.subflows[identifier]['nonceb'])
@@ -450,8 +473,13 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 		tcp_pkt = pkt.get_protocol(tcp.tcp)
 
+
 		# If TCP
 		if tcp_pkt:
+			print "V event in handleri: "
+			print tcp_pkt.src_port
+			print tcp_pkt.dst_port
+
 			options = tcp_pkt.option
 			# Parse TCP options
 			if options and len(options) > 0:
@@ -523,4 +551,84 @@ class SimpleSwitch13(app_manager.RyuApp):
 		self.net.add_edges_from(links)
 		links = [(link.dst.dpid, link.src.dpid, {'port': link.dst.port_no}) for link in links_list]
 		self.net.add_edges_from(links)
+
+		print self.net.nodes
+		print self.net.edges
+
+
+class SimpleSwitchController(ControllerBase):
+
+	def __init__(self, req, link, data, **config):
+		super(SimpleSwitchController, self).__init__(req, link, data, **config)
+		self.simple_switch_app = data[simple_switch_instance_name]
+		self.controllerNodes = []
+
+	@route('connections','/connections', methods=['GET'])
+	def list_connections(self, req, **kwargs):
+		simple_switch = self.simple_switch_app
+		connections = simple_switch.subflows
+		body = json.dumps(connections)
+		return Response(content_type='application/json', body=body)
+
+	@route('graph', '/graph', methods=['GET'])
+	def show_graph(self, req, **kwargs):
+		simple_switch = self.simple_switch_app
+		nx.draw(simple_switch.net, with_labels=True)
+
+		plt.savefig("/home/mato/mptcp.sk/img/graph.png")
+
+	@route('nodes', '/nodes', methods=['GET'])
+	def get_nodes(self, req, **kwargs):
+		simple_switch = self.simple_switch_app
+		nodes = []
+		i = 1
+
+		positions = [[200, 0],	 	[400, 0], 		[700, 0], 	[1000, 0],
+					 [100, 200], 		[200, 200], 	[400, 200], 	[500, 200],
+					 [700, 200], 	[800, 200], 	[1000, 200], 	[1100, 200],
+					 [100, 300], 		[200, 300], 	[400, 300], 	[500, 300],
+					 [700, 300], 	[800, 300], 	[1000, 300], 	[1100, 300],
+					 [100, 400], [200, 400], [1100, 400],[1000, 400]]
+
+
+		for node in simple_switch.net.nodes:
+			nodes.append({'id': i, 'label': str(node), 'x': positions[i-1][0], 'y': positions[i-1][1]})
+			i = i + 1
+		body = json.dumps(nodes)
+		return Response(content_type='application/json', body=body)
+
+	@route('edges', '/edges', methods=['GET'])
+	def get_edges(self, req, **kwargs):
+		simple_switch = self.simple_switch_app
+		edges = []
+		undir = copy.deepcopy(simple_switch.net.to_undirected())
+
+		positions = [[200, 0], [400, 0], [700, 0], [1000, 0],
+					 [100, 200], [200, 200], [400, 200], [500, 200],
+					 [700, 200], [800, 200], [1000, 200], [1100, 200],
+					 [100, 300], [200, 300], [400, 300], [500, 300],
+					 [700, 300], [800, 300], [1000, 300], [1100, 300],
+					 [100, 400], [200, 400], [1100, 400], [1000, 400]]
+		nodes = []
+		i = 1
+		for node in simple_switch.net.nodes:
+			nodes.append({'id': i, 'label': str(node), 'x': positions[i-1][0], 'y': positions[i-1][1]})
+			i = i + 1
+
+		for edge in undir.edges:
+			od = 0
+			to = 0
+			for node in nodes:
+				if str(edge[0]) == node['label']:
+					od = node['id']
+			for node in nodes:
+				if str(edge[1]) == node['label']:
+					to = node['id']
+			edges.append({'from': od, 'to': to})
+		body = json.dumps(edges)
+		return Response(content_type='application/json', body=body)
+
+
+
+
 
