@@ -10,7 +10,7 @@ from mininet.cli import CLI
 from mininet.log import setLogLevel, info
 from mininet.link import TCLink, Intf
 from subprocess import call
-
+import sys
 
 def myNetwork():
 	net = Mininet(topo=None, build=False, link=TCLink)
@@ -18,8 +18,7 @@ def myNetwork():
 	info('*** Adding controller\n')
 	c0 = net.addController(name='c0', controller=RemoteController, protocol='tcp', ip='127.0.0.1', port=6633)
 
-	info('*** Add switches\n')
-
+	info('*** Adding switches\n')
 	s1 = net.addSwitch('s1', cls=OVSKernelSwitch, protocols='OpenFlow13')
 	s2 = net.addSwitch('s2', cls=OVSKernelSwitch, protocols='OpenFlow13')
 	s3 = net.addSwitch('s3', cls=OVSKernelSwitch, protocols='OpenFlow13')
@@ -40,6 +39,9 @@ def myNetwork():
 	s18 = net.addSwitch('s18', cls=OVSKernelSwitch, protocols='OpenFlow13')
 	s19 = net.addSwitch('s19', cls=OVSKernelSwitch, protocols='OpenFlow13')
 	s20 = net.addSwitch('s20', cls=OVSKernelSwitch, protocols='OpenFlow13')
+
+	info('*** Adding links between switches.\n')
+
 	net.addLink(s1, s5, bw=10)
 	net.addLink(s1, s7, bw=10)
 	net.addLink(s1, s9, bw=10)
@@ -80,26 +82,32 @@ def myNetwork():
 	net.addLink(s12, s19, bw=10)
 	net.addLink(s12, s20, bw=10)
 
+	info('*** Adding end devices and assigning IPs.\n')
 	h1 = net.addHost('h1', ip='10.0.0.1/24')
 	h2 = net.addHost('h2', ip='10.0.0.3/24')
 
+	info('*** Adding second interfaces to end devices.\n')
 	TCLink(h1, s13, intfName1='h1-eth0')
 	TCLink(h1, s14, intfName1='h1-eth1')
 	TCLink(h2, s19, intfName1='h2-eth0')
 	TCLink(h2, s20, intfName1='h2-eth1')
 
+	info('*** Configuring seconds IPs.\n')
 	h1.cmd('ifconfig h1-eth1 10.0.0.2 netmask 255.255.255.0')
 	h2.cmd('ifconfig h2-eth1 10.0.0.4 netmask 255.255.255.0')
 
-	h1.cmd('/bin/bash /home/mato/ryu/scripts/h1_routes.sh')
-	h2.cmd('/bin/bash /home/mato/ryu/scripts/h2_routes.sh')
+	info('*** Setting up source based routing.\n')
+	h1.cmd('/home/mato/ryu/scripts/h1_routes.sh')
+	h2.cmd('/home/mato/ryu/scripts/h2_routes.sh')
 
-	h1.cmd('/bin/bash /home/mato/ryu/scripts/h1_arp.sh')
-	h2.cmd('/bin/bash /home/mato/ryu/scripts/h2_arp.sh')
+	info('*** Flushing ARP tables.\n')
+	h1.cmd('/home/mato/ryu/scripts/h1_arp.sh')
+	h2.cmd('/home/mato/ryu/scripts/h2_arp.sh')
 
 	info('*** Starting network\n')
 	net.build()
-	info('*** Starting controllers\n')
+
+	info('*** Starting controller\n')
 	for controller in net.controllers:
 		controller.start()
 
@@ -124,6 +132,10 @@ def myNetwork():
 	net.get('s18').start([c0])
 	net.get('s19').start([c0])
 	net.get('s20').start([c0])
+
+	info('*** Starting iperf server on host #2')
+	h2.cmd('/home/mato/ryu/scripts/h2_arp.sh && iperf -s &')
+	info('*** Done.\n')
 
 	CLI(net)
 	net.stop()

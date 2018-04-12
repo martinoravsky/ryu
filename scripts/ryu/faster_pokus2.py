@@ -447,6 +447,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 		Execute this when packet is sent to controller.
 		"""
 
+
 		msg = ev.msg
 		datapath = msg.datapath
 
@@ -464,6 +465,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 		self.mac_to_port.setdefault(dpid, {})
 
 		if eth.ethertype == ether_types.ETH_TYPE_LLDP:
+			self.logger.info("Prisiel LLDP na controller.")
 			return
 
 		if self.break_broadcast_storm(pkt, src, dst, datapath, in_port):
@@ -476,10 +478,6 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 		# If TCP
 		if tcp_pkt:
-			print "V event in handleri: "
-			print tcp_pkt.src_port
-			print tcp_pkt.dst_port
-
 			options = tcp_pkt.option
 			# Parse TCP options
 			if options and len(options) > 0:
