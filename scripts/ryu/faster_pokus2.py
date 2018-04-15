@@ -465,7 +465,6 @@ class SimpleSwitch13(app_manager.RyuApp):
 		self.mac_to_port.setdefault(dpid, {})
 
 		if eth.ethertype == ether_types.ETH_TYPE_LLDP:
-			self.logger.info("Prisiel LLDP na controller.")
 			return
 
 		if self.break_broadcast_storm(pkt, src, dst, datapath, in_port):
@@ -567,6 +566,34 @@ class SimpleSwitchController(ControllerBase):
 		connections = simple_switch.subflows
 		body = json.dumps(connections)
 		return Response(content_type='application/json', body=body)
+
+	@route('connectionsFlush','/connections/flush', methods=['GET'])
+	def flush_connections(self, req, **kwargs):
+		simple_switch = self.simple_switch_app
+		connections = simple_switch.subflows
+		connections.clear()
+
+	@route('connectionsPorts', '/connections/{tokenb}', methods=['GET'])
+	def connections_ports(self, req, **kwargs):
+		simple_switch = self.simple_switch_app
+		connections = simple_switch.subflows
+
+		ports = []
+		for key, value in connections.items():
+			tokenb = str(kwargs['tokenb'])
+			compare = str(value['tokenb'])
+			if compare == tokenb:
+				ports.append(value['tp_src'])
+		body = json.dumps(ports)
+		return Response(content_type='application/json', body=body)
+
+
+
+
+
+
+
+
 
 	@route('graph', '/graph', methods=['GET'])
 	def show_graph(self, req, **kwargs):

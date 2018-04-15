@@ -45,7 +45,36 @@ def myNetwork():
 	net.addLink('s6', 's10', bw=10)
 	net.addLink('s10', 's9', bw=10)
 
+	info('*** Adding end devices.\n')
+	h1 = net.addHost('h1')
+	TCLink(h1, s1, intfName='h1-eth0')
+	TCLink(h1, s6, intfName='h1-eth1')
+	h1.setIP('10.0.0.1', intf='h1-eth0')
+	h1.setIP('10.0.0.2', intf='h1-eth1')
+	h1.setMAC('00:00:00:00:00:01', intf='h1-eth0')
+	h1.setMAC('00:00:00:00:00:02', intf='h1-eth1')
+	h1.cmd('ip rule add from 10.0.0.1 table 1')
+	h1.cmd('ip rule add from 10.0.0.2 table 2')
+	h1.cmd('ip route add 10.0.0.0/24 dev h1-eth0 scope link table 1')
+	h1.cmd('ip route add 10.0.0.0/24 dev h1-eth1 scope link table 2')
+	h1.cmd('sysctl -w net.ipv4.conf.all.arp_filter=1')
+	h1.cmd('/home/mato/ryu/scripts/h1_arp.sh')
 
+	h2 = net.addHost('h2')
+	TCLink(h2, s5, intfName='h2-eth0')
+	TCLink(h2, s11, intfName='h2-eth1')
+	h2.setIP('10.0.0.3', intf='h2-eth0')
+	h2.setIP('10.0.0.4', intf='h2-eth1')
+	h2.setMAC('00:00:00:00:00:03', intf='h2-eth0')
+	h2.setMAC('00:00:00:00:00:04', intf='h2-eth1')
+	h2.cmd('ip rule add from 10.0.0.3 table 1')
+	h2.cmd('ip rule add from 10.0.0.4 table 2')
+	h2.cmd('ip route add 10.0.0.0/24 dev h2-eth0 scope link table 1')
+	h2.cmd('ip route add 10.0.0.0/24 dev h2-eth1 scope link table 2')
+	h2.cmd('sysctl -w net.ipv4.conf.all.arp_filter=1')
+	h2.cmd('/home/mato/ryu/scripts/h2_arp.sh')
+
+	net.build()
 	info( '*** Starting network\n')
 	net.build()
 	info( '*** Starting controllers\n')
@@ -65,20 +94,7 @@ def myNetwork():
 	net.get('s10').start([c0])
 	net.get('s11').start([c0])
 
-
-	info( '*** Post configure switches and hosts\n')
-
-	info( '*** Add interfaces to switch ***' )
-	
-	_intf = Intf( 'eth0', node=s1 )
-	_intf = Intf( 'eth1', node=s6 )
-	_intf = Intf( 'eth2', node=s5 )
-	_intf = Intf( 'eth3', node=s11 )
-
-	call(['ovs-vsctl','add-port','s1','eth0'])
-	call(['ovs-vsctl','add-port','s6','eth1'])
-	call(['ovs-vsctl','add-port','s5','eth2'])
-	call(['ovs-vsctl','add-port','s11','eth3'])
+	h2.cmd('iperf -s &')
 	CLI(net)
 	net.stop()
 

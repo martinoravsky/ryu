@@ -25,17 +25,8 @@ nodes = []
 i=1
 
 for node in net.nodes:
-	nodes.append({'id':i, 'label':str(node)})
+	nodes.append({'id':i, 'label':str(node),'meno':'ferko'+str(i)})
 	i = i + 1
 
+
 print nodes
-edges = []
-
-
-for edge in net.edges:
-	od = getidfromedge(edge[0])
-	to = getidfromedge(edge[1])
-	edges.append({'from':od, 'to': to})
-
-
-print edges
