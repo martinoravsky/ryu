@@ -40,7 +40,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 		self.net = nx.DiGraph()
 		self.nodes = {}
 		self.links = {}
-		self.table = {}
+		self.sw = {}
 		self.cesty = []
 		self.subflows = {}
 		self.syn = []
@@ -164,17 +164,26 @@ class SimpleSwitch13(app_manager.RyuApp):
 		dpid = datapath.id
 		arp_pkt = pkt.get_protocol(arp.arp)
 
-		if dst == mac.BROADCAST_STR:
-			arp_dst_ip = arp_pkt.dst_ip
-			arp_src_ip = arp_pkt.src_ip
+		# if dst == mac.BROADCAST_STR:
+		# 	arp_dst_ip = arp_pkt.dst_ip
+		# 	arp_src_ip = arp_pkt.src_ip
+		#
+		# 	if (dpid, arp_src_ip, arp_dst_ip) in self.table:
+		# 		if self.table[(dpid, arp_src_ip, arp_dst_ip)] != in_port:
+		# 			datapath.send_packet_out(in_port=in_port, actions=[])
+		# 			return True
+		# 	else:
+		# 		self.table[(dpid, arp_src_ip, arp_dst_ip)] = in_port
+		# 		self.mac_to_port[datapath.id][src] = in_port
 
-			if (dpid, arp_src_ip, arp_dst_ip) in self.table:
-				if self.table[(dpid, arp_src_ip, arp_dst_ip)] != in_port:
+		# Break the loop for avoiding ARP broadcast storm
+		if dst == mac.BROADCAST_STR and arp_pkt:
+			if (datapath.id, src, arp_pkt.dst_ip) in self.sw:
+				if self.sw[(datapath.id, src, arp_pkt.dst_ip)] != in_port:
 					datapath.send_packet_out(in_port=in_port, actions=[])
 					return True
 			else:
-				self.table[(dpid, arp_src_ip, arp_dst_ip)] = in_port
-				self.mac_to_port[datapath.id][src] = in_port
+				self.sw[(datapath.id, src, arp_pkt.dst_ip)] = in_port
 
 	def mp_capable_syn(self, datapath, tcp_pkt, ip, src, dst, hexopt):
 		identifier = ip.src + ';' + ip.dst + ';' + str(tcp_pkt.src_port) + ';' + str(tcp_pkt.dst_port)
@@ -447,7 +456,6 @@ class SimpleSwitch13(app_manager.RyuApp):
 		Execute this when packet is sent to controller.
 		"""
 
-
 		msg = ev.msg
 		datapath = msg.datapath
 
@@ -472,11 +480,21 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 		ip = pkt.get_protocol(ipv4.ipv4)
 
+
+		#if ip:
+		#	self.logger.info("prisiel paket so src ip %s, dstip %s, srcmac %s, dstmac %s na switch cislo %s", ip.src,
+		#				 ip.dst, src, dst, dpid)
+		#else:
+	#		self.logger.info("prisiel paket so srcmac %s, dstmac %s na switch cislo %s", src, dst, dpid)
+
+
 		tcp_pkt = pkt.get_protocol(tcp.tcp)
+
 
 
 		# If TCP
 		if tcp_pkt:
+
 			options = tcp_pkt.option
 			# Parse TCP options
 			if options and len(options) > 0:
@@ -508,12 +526,16 @@ class SimpleSwitch13(app_manager.RyuApp):
 			self.net.add_edge(dpid, src, port=in_port)
 			self.net.add_edge(src, dpid)
 
+		self.logger.info("prisiel paket na switch c. %d, src: %s, dst: %s, in_port: %s", dpid, src, dst, in_port)
+
 		self.mac_to_port[dpid][src] = in_port
 
+		out_port = 0
 		if dst in self.mac_to_port[dpid]:
 			out_port = self.mac_to_port[dpid][dst]
 		else:
 			out_port = ofproto.OFPP_FLOOD
+			print "floodujem do", out_port
 
 		actions = [parser.OFPActionOutput(out_port)]
 		#
@@ -534,23 +556,19 @@ class SimpleSwitch13(app_manager.RyuApp):
 		datapath.send_msg(out)
 
 	@set_ev_cls(event.EventSwitchEnter)
-	def get_topology_data(self, ev):
+	def get_topology_data(self,ev):
 		switch_list = get_switch(self.topology_api_app, None)
 		switches = [switch.dp.id for switch in switch_list]
 		self.net.add_nodes_from(switches)
 
 		links_list = get_link(self.topology_api_app, None)
 		links = [(link.src.dpid, link.dst.dpid, {'port': link.src.port_no}) for link in links_list]
-
-		# for link in links_list:
-		#	print link.src.port_no
-
 		self.net.add_edges_from(links)
 		links = [(link.dst.dpid, link.src.dpid, {'port': link.dst.port_no}) for link in links_list]
 		self.net.add_edges_from(links)
 
-		print self.net.nodes
-		print self.net.edges
+		print self.net.nodes()
+		print self.net.edges()
 
 
 class SimpleSwitchController(ControllerBase):
@@ -587,13 +605,27 @@ class SimpleSwitchController(ControllerBase):
 		body = json.dumps(ports)
 		return Response(content_type='application/json', body=body)
 
+	@route('topology','/topology/print', methods=['GET'])
+	def get_topology(self, req, **kwargs):
+		simple_switch = self.simple_switch_app
 
+		body = json.dumps(list(simple_switch.net.nodes)+list(simple_switch.net.edges))
+		print "Som vo funkcii"
+		return Response(content_type='application/json', body=body)
 
+	@route('topology', '/topology/flush', methods=['GET'])
+	def flush_topology(self, req, **kwargs):
+		simple_switch = self.simple_switch_app
+		simple_switch.net.clear()
+		print "Topology deleted"
 
-
-
-
-
+	@route('topology', '/topology/update', methods=['GET'])
+	def update_topology(self, req, **kwargs):
+		self.flush_topology(req, **kwargs)
+		simple_switch = self.simple_switch_app
+		simple_switch.get_topology_data('')
+		print "Topology updated."
+		#self.get_topology()
 
 	@route('graph', '/graph', methods=['GET'])
 	def show_graph(self, req, **kwargs):
