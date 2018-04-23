@@ -19,7 +19,7 @@ from ryu.controller.handler import MAIN_DISPATCHER, CONFIG_DISPATCHER
 from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ofproto_v1_3
 from ryu.lib.packet import packet
-from ryu.lib.packet import ethernet, ether_types
+from ryu.lib.packet import ethernet, ether_types, tcp
 from ryu.topology.api import get_switch, get_link
 from ryu.app.ofctl.api import get_datapath
 from ryu.topology import event, switches
@@ -110,7 +110,11 @@ class SimpleSwitch13(app_manager.RyuApp):
 		if eth.ethertype == ether_types.ETH_TYPE_LLDP:
 			return
 
+		tcp_pkt = pkt.get_protocol(tcp.tcp)
 
+
+		if tcp_pkt:
+			print tcp_pkt.src_port
 
 		dpid = datapath.id
 		self.mac_to_port.setdefault(dpid, {})

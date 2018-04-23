@@ -25,83 +25,78 @@ import matplotlib.pyplot as plt
 simple_switch_instance_name = 'dp_api_app'
 
 
-class SimpleSwitch13(app_manager.RyuApp):
+class Controller(app_manager.RyuApp):
 	OFP_VERSIONS = [ofproto_v1_3.OFP_VERSION]
 	_CONTEXTS = {'wsgi': WSGIApplication}
 
 	def __init__(self, *args, **kwargs):
-		"""
-		Initialize stuff.
-
-		"""
-		super(SimpleSwitch13, self).__init__(*args, **kwargs)
-		self.mac_to_port = {}
-		self.topology_api_app = self
-		self.net = nx.DiGraph()
-		self.nodes = {}
-		self.links = {}
-		self.sw = {}
-		self.cesty = []
-		self.subflows = {}
-		self.syn = []
-		self.synack = []
-		self.ack = []
-		#self.dp = data['dp']
-		wsgi = kwargs['wsgi']
-		wsgi.register(SimpleSwitchController,
+		super(Controller, self).__init__(*args, **kwargs)
+		self.mac_to_port = {}				# CAM table
+		self.topology_api_app = self		# Ryu Rest API
+		self.net = nx.DiGraph()				# Topology graph
+		self.nodes = {}						# Topology nodes storage
+		self.links = {}						# Topology links storage
+		self.sw = {}						# Broadcast storm table
+		self.paths = []						# Paths
+		self.subflows = {}					# Main connection storage
+		self.syn = []						# Pending for SYN-ACK
+		self.synack = []					# Pending for ACK
+		self.ack = []						# Not pending
+		wsgi = kwargs['wsgi']				# Registering our REST API
+		wsgi.register(Controller,
 				  {simple_switch_instance_name: self})
 
-	def number_of_common_nodes(self, p, cesty):
+	def number_of_common_nodes(self, p, paths):
 		count = 0
-		for cesta in cesty:
-			count = count + len(list(set(p).intersection(cesta)))
+		for path in paths:
+			count = count + len(list(set(p).intersection(path)))
 		return count
 
-	def are_node_disjoint(self, p, cesty):
-		print "Na zaciatku funkcie: ", p, cesty
-		for cesta in cesty:
-			print "Cesta v loope testu hladania node disjoint ciest: ", cesta
-			tmp1 = copy.deepcopy(cesta)
-			tmp2 = copy.deepcopy(p)
-			print "Tmp1 prve: ", tmp1
-			print "Tmp2 prve: ", tmp2
-			tmp1 = tmp1[2:-2]
-			tmp2 = tmp2[2:-2]
-
-			print "Tmp1: ", tmp1
-			print "Tmp2: ", tmp2
-
-			if set(tmp1).isdisjoint(tmp2):
-				print "Path ", cesta, "is node-disjoint with", p
-				return p
-		return 0
-
-	def are_edge_disjoint(self, p, cesty):
-		for cesta in cesty:
-			tmp1 = copy.deepcopy(cesta)
-			tmp2 = copy.deepcopy(p)
-			tmp1 = tmp1[1:-1]
-			tmp2 = tmp2[1:-1]
-
-			revedges1 = []
-			revedges2 = []
-
-			rev1 = copy.deepcopy(tmp1[::-1])
-			rev2 = copy.deepcopy(tmp2[::-1])
-
-			edges1 = zip(tmp1, tmp1[1:])
-			edges2 = zip(tmp2, tmp2[1:])
-
-			revedges1 = zip(rev1, rev1[1:])
-			revedges2 = zip(rev2, rev2[1:])
-
-			edges1 = edges1 + revedges1
-			edges2 = edges2 + revedges2
-
-			if set(edges1).isdisjoint(edges2):
-				print "Path ", cesta, "is edge-disjoint with", p
-				return p
-		return 0
+	# def are_node_disjoint(self, p, cesty):
+	# 	print "Na zaciatku funkcie: ", p, cesty
+	# 	for cesta in cesty:
+	# 		print "Cesta v loope testu hladania node disjoint ciest: ", cesta
+	# 		tmp1 = copy.deepcopy(cesta)
+	# 		tmp2 = copy.deepcopy(p)
+	# 		print "Tmp1 prve: ", tmp1
+	# 		print "Tmp2 prve: ", tmp2
+	# 		tmp1 = tmp1[2:-2]
+	# 		tmp2 = tmp2[2:-2]
+	#
+	# 		print "Tmp1: ", tmp1
+	# 		print "Tmp2: ", tmp2
+	#
+	# 		if set(tmp1).isdisjoint(tmp2):
+	# 			print "Path ", cesta, "is node-disjoint with", p
+	# 			return p
+	# 	return 0
+	#
+	# def are_edge_disjoint(self, p, cesty):
+	# 	for cesta in cesty:
+	# 		tmp1 = copy.deepcopy(cesta)
+	# 		tmp2 = copy.deepcopy(p)
+	# 		tmp1 = tmp1[1:-1]
+	# 		tmp2 = tmp2[1:-1]
+	#
+	# 		revedges1 = []
+	# 		revedges2 = []
+	#
+	# 		rev1 = copy.deepcopy(tmp1[::-1])
+	# 		rev2 = copy.deepcopy(tmp2[::-1])
+	#
+	# 		edges1 = zip(tmp1, tmp1[1:])
+	# 		edges2 = zip(tmp2, tmp2[1:])
+	#
+	# 		revedges1 = zip(rev1, rev1[1:])
+	# 		revedges2 = zip(rev2, rev2[1:])
+	#
+	# 		edges1 = edges1 + revedges1
+	# 		edges2 = edges2 + revedges2
+	#
+	# 		if set(edges1).isdisjoint(edges2):
+	# 			print "Path ", cesta, "is edge-disjoint with", p
+	# 			return p
+	# 	return 0
 
 	@set_ev_cls(ofp_event.EventOFPSwitchFeatures, CONFIG_DISPATCHER)
 	def switch_features_handler(self, ev):
@@ -161,22 +156,8 @@ class SimpleSwitch13(app_manager.RyuApp):
 		Maintain ARP table (dpid, source_ip, destination_ip)
 		so when broadcast storm occurs, break the loop.
 		"""
-		dpid = datapath.id
 		arp_pkt = pkt.get_protocol(arp.arp)
 
-		# if dst == mac.BROADCAST_STR:
-		# 	arp_dst_ip = arp_pkt.dst_ip
-		# 	arp_src_ip = arp_pkt.src_ip
-		#
-		# 	if (dpid, arp_src_ip, arp_dst_ip) in self.table:
-		# 		if self.table[(dpid, arp_src_ip, arp_dst_ip)] != in_port:
-		# 			datapath.send_packet_out(in_port=in_port, actions=[])
-		# 			return True
-		# 	else:
-		# 		self.table[(dpid, arp_src_ip, arp_dst_ip)] = in_port
-		# 		self.mac_to_port[datapath.id][src] = in_port
-
-		# Break the loop for avoiding ARP broadcast storm
 		if dst == mac.BROADCAST_STR and arp_pkt:
 			if (datapath.id, src, arp_pkt.dst_ip) in self.sw:
 				if self.sw[(datapath.id, src, arp_pkt.dst_ip)] != in_port:
@@ -185,7 +166,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 			else:
 				self.sw[(datapath.id, src, arp_pkt.dst_ip)] = in_port
 
-	def mp_capable_syn(self, datapath, tcp_pkt, ip, src, dst, hexopt):
+	def mp_capable_syn(self, datapath, tcp_pkt, ip, hexopt):
 		identifier = ip.src + ';' + ip.dst + ';' + str(tcp_pkt.src_port) + ';' + str(tcp_pkt.dst_port)
 
 		if identifier not in self.syn:
@@ -210,9 +191,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 										 'main': True,
 										 'paths': paths}
 
-			print "Po SYN:"
-			print self.subflows[identifier]
-			# Vytvorim pravidlo pre SYN-ACK na opacnom smere
+			# SYN-ACK rule from opposite way
 			match = parser.OFPMatch(eth_type=0x0800,
 									ip_proto=6,
 									ipv4_src=ip.dst,
@@ -223,7 +202,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 			actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
 			self.add_flow(datapath, 2, match, actions)
 
-	def mp_capable_syn_ack(self, datapath, tcp_pkt, ip, src, dst, hexopt):
+	def mp_capable_syn_ack(self, datapath, tcp_pkt, ip, hexopt):
 		identifier = ip.dst + ';' + ip.src + ';' + str(tcp_pkt.dst_port) + ';' + str(tcp_pkt.src_port)
 
 		if identifier not in self.synack:
@@ -234,7 +213,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 			self.subflows[identifier]['tokenb'] = int(hashlib.sha1(binascii.unhexlify(hexopt[4:])).hexdigest()[:8], 16)
 			self.subflows[identifier]['keyb'] = hexopt[4:]
 
-			# Vytvorim pravidlo pre ACK v opacnom smere
+			# ACK rule from opposite way
 			ofproto = datapath.ofproto
 			parser = datapath.ofproto_parser
 			match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=ip.dst, ipv4_dst=ip.src,
@@ -244,7 +223,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 			actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
 			self.add_flow(datapath, 2, match, actions)
 
-			# Zmazem pravidlo pre SYN-ACK v tomto smere
+			# Delete SYN-ACK rule from this way
 			match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=ip.src, ipv4_dst=ip.dst,
 									tcp_src=tcp_pkt.src_port, tcp_dst=tcp_pkt.dst_port,
 									tcp_flags=0x012)
@@ -337,14 +316,14 @@ class SimpleSwitch13(app_manager.RyuApp):
 
 			self.ack.append(identifier)
 
-			# Zmazem pravidlo pre ACK v tomto smere
+			# Delete ACK rule for this way
 			parser = datapath.ofproto_parser
 			match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, ipv4_src=ip.src, ipv4_dst=ip.dst,
 									tcp_src=tcp_pkt.src_port, tcp_dst=tcp_pkt.dst_port,
 									tcp_flags=0x010)
 			self.del_flow(datapath, match)
 
-			# Send B->A traffic to controller
+			# Send opposite direciton traffic to controller
 			ofproto = datapath.ofproto
 			match = parser.OFPMatch(eth_type=0x0800, ip_proto=6, tcp_flags=0x002)
 			actions = [parser.OFPActionOutput(ofproto.OFPP_CONTROLLER, ofproto.OFPCML_NO_BUFFER)]
@@ -366,10 +345,10 @@ class SimpleSwitch13(app_manager.RyuApp):
 			message = binascii.unhexlify(self.subflows[identifier]['noncea'] + self.subflows[identifier]['nonceb'])
 
 			# Generate hash.
-			vysledok = hmac.new(keyhmac, message, hashlib.sha1).hexdigest()
+			result = hmac.new(keyhmac, message, hashlib.sha1).hexdigest()
 
 			# Compare generated HASH to the one from MP_JOIN ACK.
-			if vysledok == hmachash:
+			if result == hmachash:
 				paths = sorted(list(nx.all_simple_paths(self.net, src, dst)), key=len)
 
 				connection_paths = []
@@ -393,24 +372,23 @@ class SimpleSwitch13(app_manager.RyuApp):
 					common_nodes.append({'path': node,'count': common_elements})
 					#print "Common nodes: ", common_nodes
 
-				# Najde ze nejaka cesta subflowu je node disjoint
-				#common_nodes.sort(key=lambda x: common_nodes['count'])
-				node_disjoint_path = sorted(common_nodes, key=itemgetter('count'))[0]['path']
-				#node_disjoint_path = common_nodes[0]['path']
-				if node_disjoint_path != 0:
-					chosen_path = node_disjoint_path
-					self.subflows[connection]['paths'].append(chosen_path)
-					self.subflows[identifier]['paths'].append(chosen_path)
-
-				if chosen_path == 0:
-					print "No node-disjoint paths available. Looking for edge-disjoint paths."
-					for edge in edge_disjoint_test:
-						edge_disjoint_path = copy.deepcopy(self.are_edge_disjoint(edge, connection_paths))
-						if edge_disjoint_path != 0:
-							chosen_path = edge_disjoint_path
-							self.subflows[connection]['paths'].append(chosen_path)
-							self.subflows[identifier]['paths'].append(chosen_path)
-							break
+				# #common_nodes.sort(key=lambda x: common_nodes['count'])
+				# node_disjoint_path = sorted(common_nodes, key=itemgetter('count'))[0]['path']
+				# #node_disjoint_path = common_nodes[0]['path']
+				# if node_disjoint_path != 0:
+				# 	chosen_path = node_disjoint_path
+				# 	self.subflows[connection]['paths'].append(chosen_path)
+				# 	self.subflows[identifier]['paths'].append(chosen_path)
+				#
+				# if chosen_path == 0:
+				# 	print "No node-disjoint paths available. Looking for edge-disjoint paths."
+				# 	for edge in edge_disjoint_test:
+				# 		edge_disjoint_path = copy.deepcopy(self.are_edge_disjoint(edge, connection_paths))
+				# 		if edge_disjoint_path != 0:
+				# 			chosen_path = edge_disjoint_path
+				# 			self.subflows[connection]['paths'].append(chosen_path)
+				# 			self.subflows[identifier]['paths'].append(chosen_path)
+				# 			break
 
 				if chosen_path == 0:
 					print "Neither node-disjoint paths or edge-disjoint paths were found. Using least used shortest path of connection."
@@ -479,22 +457,10 @@ class SimpleSwitch13(app_manager.RyuApp):
 			return
 
 		ip = pkt.get_protocol(ipv4.ipv4)
-
-
-		#if ip:
-		#	self.logger.info("prisiel paket so src ip %s, dstip %s, srcmac %s, dstmac %s na switch cislo %s", ip.src,
-		#				 ip.dst, src, dst, dpid)
-		#else:
-	#		self.logger.info("prisiel paket so srcmac %s, dstmac %s na switch cislo %s", src, dst, dpid)
-
-
 		tcp_pkt = pkt.get_protocol(tcp.tcp)
-
-
 
 		# If TCP
 		if tcp_pkt:
-
 			options = tcp_pkt.option
 			# Parse TCP options
 			if options and len(options) > 0:
@@ -507,9 +473,9 @@ class SimpleSwitch13(app_manager.RyuApp):
 						# MP CAPABLE
 						if subtype == "00":
 							if tcp_pkt.bits == 2:
-								self.mp_capable_syn(datapath, tcp_pkt, ip, src, dst, hexopt)
+								self.mp_capable_syn(datapath, tcp_pkt, ip, hexopt)
 							elif tcp_pkt.bits == 18:
-								self.mp_capable_syn_ack(datapath, tcp_pkt, ip, src, dst, hexopt)
+								self.mp_capable_syn_ack(datapath, tcp_pkt, ip, hexopt)
 							elif tcp_pkt.bits == 16:
 								self.mp_capable_ack(datapath, tcp_pkt, ip, src, dst, hexopt)
 						# MP_JOIN
@@ -526,7 +492,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 			self.net.add_edge(dpid, src, port=in_port)
 			self.net.add_edge(src, dpid)
 
-		self.logger.info("prisiel paket na switch c. %d, src: %s, dst: %s, in_port: %s", dpid, src, dst, in_port)
+		self.logger.info("Packet arrived on switch #%d, src: %s, dst: %s, in_port: %s", dpid, src, dst, in_port)
 
 		self.mac_to_port[dpid][src] = in_port
 
@@ -535,7 +501,7 @@ class SimpleSwitch13(app_manager.RyuApp):
 			out_port = self.mac_to_port[dpid][dst]
 		else:
 			out_port = ofproto.OFPP_FLOOD
-			print "floodujem do", out_port
+			print "Flooding to", out_port
 
 		actions = [parser.OFPActionOutput(out_port)]
 		#
@@ -571,17 +537,17 @@ class SimpleSwitch13(app_manager.RyuApp):
 		print self.net.edges()
 
 
-class SimpleSwitchController(ControllerBase):
+class RestController(ControllerBase):
 
 	def __init__(self, req, link, data, **config):
-		super(SimpleSwitchController, self).__init__(req, link, data, **config)
+		super(RestController, self).__init__(req, link, data, **config)
 		self.simple_switch_app = data[simple_switch_instance_name]
 		self.controllerNodes = []
 
 	@route('connections','/connections', methods=['GET'])
 	def list_connections(self, req, **kwargs):
 		simple_switch = self.simple_switch_app
-		connections = simple_switch.subflows
+		connections = copy.deepcopy(simple_switch.subflows)
 		body = json.dumps(connections)
 		return Response(content_type='application/json', body=body)
 
@@ -610,7 +576,6 @@ class SimpleSwitchController(ControllerBase):
 		simple_switch = self.simple_switch_app
 
 		body = json.dumps(list(simple_switch.net.nodes)+list(simple_switch.net.edges))
-		print "Som vo funkcii"
 		return Response(content_type='application/json', body=body)
 
 	@route('topology', '/topology/flush', methods=['GET'])
@@ -625,14 +590,12 @@ class SimpleSwitchController(ControllerBase):
 		simple_switch = self.simple_switch_app
 		simple_switch.get_topology_data('')
 		print "Topology updated."
-		#self.get_topology()
 
-	@route('graph', '/graph', methods=['GET'])
-	def show_graph(self, req, **kwargs):
-		simple_switch = self.simple_switch_app
-		nx.draw(simple_switch.net, with_labels=True)
-
-		plt.savefig("/home/mato/mptcp.sk/img/graph.png")
+	# @route('graph', '/graph', methods=['GET'])
+	# def show_graph(self, req, **kwargs):
+	# 	simple_switch = self.simple_switch_app
+	# 	nx.draw(simple_switch.net, with_labels=True)
+	# 	plt.savefig("/home/mato/mptcp.sk/img/graph.png")
 
 	@route('nodes', '/nodes', methods=['GET'])
 	def get_nodes(self, req, **kwargs):
@@ -640,13 +603,12 @@ class SimpleSwitchController(ControllerBase):
 		nodes = []
 		i = 1
 
-		positions = [[200, 0],	 	[400, 0], 		[700, 0], 	[1000, 0],
-					 [100, 200], 		[200, 200], 	[400, 200], 	[500, 200],
-					 [700, 200], 	[800, 200], 	[1000, 200], 	[1100, 200],
-					 [100, 300], 		[200, 300], 	[400, 300], 	[500, 300],
-					 [700, 300], 	[800, 300], 	[1000, 300], 	[1100, 300],
+		positions = [[200, 0],	 [400, 0], 	[700, 0], 	[1000, 0],
+					 [100, 200], [200, 200], [400, 200], [500, 200],
+					 [700, 200], [800, 200], [1000, 200], [1100, 200],
+					 [100, 300], [200, 300], [400, 300], [500, 300],
+					 [700, 300], [800, 300], [1000, 300], [1100, 300],
 					 [100, 400], [200, 400], [1100, 400],[1000, 400]]
-
 
 		for node in simple_switch.net.nodes:
 			nodes.append({'id': i, 'label': str(node), 'x': positions[i-1][0], 'y': positions[i-1][1]})
@@ -673,15 +635,15 @@ class SimpleSwitchController(ControllerBase):
 			i = i + 1
 
 		for edge in undir.edges:
-			od = 0
+			fromEdge = 0
 			to = 0
 			for node in nodes:
 				if str(edge[0]) == node['label']:
-					od = node['id']
+					fromEdge = node['id']
 			for node in nodes:
 				if str(edge[1]) == node['label']:
 					to = node['id']
-			edges.append({'from': od, 'to': to})
+			edges.append({'from': fromEdge, 'to': to})
 		body = json.dumps(edges)
 		return Response(content_type='application/json', body=body)
 
